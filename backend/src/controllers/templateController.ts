@@ -114,9 +114,9 @@ export const getPublishedTemplates = async (req: AuthRequest, res: Response): Pr
       query.$text = { $search: search as string };
     }
 
-    const templates = await Template.find(query)
-      .select('name slug description category thumbnail previewImages colorSchemes fontPairs usageCount sections')
-      .sort({ usageCount: -1, createdAt: -1 });
+        const templates = await Template.find(query)
+          .select('name slug description category thumbnail previewImages colorSchemes fontPairs usageCount sections previewDataSets')
+          .sort({ usageCount: -1, createdAt: -1 });
 
     res.json({ templates });
   } catch (error) {

@@ -69,12 +69,16 @@ export default function TemplatesPage() {
       },
     })
 
-    if (title) {
-      createSiteMutation.mutate({ templateId: template._id, title })
+      if (title) {
+        createSiteMutation.mutate({ templateId: template._id, title })
+      }
     }
-  }
 
-  const filteredTemplates = templates?.filter((template) => {
+    const handlePreview = (template: Template) => {
+      router.push(`/dashboard/templates/${template._id}/preview`)
+    }
+
+    const filteredTemplates = templates?.filter((template) => {
     const matchesSearch = template.name.toLowerCase().includes(search.toLowerCase()) ||
       template.description?.toLowerCase().includes(search.toLowerCase())
     const matchesCategory = category === 'All' || template.category === category
@@ -140,14 +144,15 @@ export default function TemplatesPage() {
         </div>
       ) : filteredTemplates && filteredTemplates.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTemplates.map((template) => (
-            <TemplateCard
-              key={template._id}
-              template={template}
-              onUse={() => handleUseTemplate(template)}
-              isCreating={createSiteMutation.isPending}
-            />
-          ))}
+                    {filteredTemplates.map((template) => (
+                      <TemplateCard
+                        key={template._id}
+                        template={template}
+                        onUse={() => handleUseTemplate(template)}
+                        onPreview={() => handlePreview(template)}
+                        isCreating={createSiteMutation.isPending}
+                      />
+                    ))}
         </div>
       ) : (
         <div className="text-center py-16">
@@ -165,10 +170,12 @@ export default function TemplatesPage() {
 function TemplateCard({ 
   template, 
   onUse,
+  onPreview,
   isCreating
 }: { 
   template: Template
   onUse: () => void
+  onPreview: () => void
   isCreating: boolean
 }) {
   return (
@@ -186,7 +193,10 @@ function TemplateCard({
           </div>
         )}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-          <button className="bg-white text-gray-900 px-4 py-2 rounded-lg font-medium flex items-center gap-2 transform scale-90 group-hover:scale-100 transition-transform">
+          <button 
+            onClick={onPreview}
+            className="bg-white text-gray-900 px-4 py-2 rounded-lg font-medium flex items-center gap-2 transform scale-90 group-hover:scale-100 transition-transform"
+          >
             <Eye className="w-4 h-4" /> Preview
           </button>
         </div>
