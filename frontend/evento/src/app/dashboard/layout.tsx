@@ -11,7 +11,8 @@ import {
   Settings,
   LogOut,
   Menu,
-  X
+  X,
+  Shield
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuthStore } from '@/stores/authStore'
@@ -20,6 +21,7 @@ const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/dashboard/templates', icon: FileText, label: 'Templates' },
   { href: '/dashboard/sites', icon: Globe, label: 'My Sites' },
+  { href: '/dashboard/admin/templates', icon: Shield, label: 'Admin' },
   { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
 ]
 
