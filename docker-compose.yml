@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: template-builder-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=template-builder
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: template-builder-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongodb
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - MONGODB_URI=mongodb://mongodb:27017/template-builder
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key}
+      - BASE_URL=http://localhost:5000
+      - CORS_ORIGIN=http://localhost:3000
+
+  frontend:
+    build:
+      context: ./frontend/template-builder-frontend
+      dockerfile: Dockerfile
+    container_name: template-builder-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongodb_data:
