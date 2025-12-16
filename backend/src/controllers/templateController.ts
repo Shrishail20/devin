@@ -1,20 +1,32 @@
 import { Response } from 'express';
-import { Template, TemplateInstance } from '../models';
-import { AuthRequest, createError } from '../middleware';
-import { interpolateComponent, extractVariables } from '../utils';
+import { Template, Site } from '../models';
+import { AuthRequest } from '../middleware';
 import { v4 as uuidv4 } from 'uuid';
 
+// Helper to generate slug from name
+const generateSlug = (name: string): string => {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '') + '-' + uuidv4().slice(0, 8);
+};
+
+// Create a new template (admin only)
 export const createTemplate = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { name, description, category, tags, components, dataSchema } = req.body;
+    const { name, description, category, sections, colorSchemes, fontPairs, previewDataSets } = req.body;
+
+    const slug = generateSlug(name);
 
     const template = new Template({
       name,
+      slug,
       description,
       category,
-      tags,
-      components: components || [],
-      dataSchema: dataSchema || {},
+      sections: sections || [],
+      colorSchemes: colorSchemes || [],
+      fontPairs: fontPairs || [],
+      previewDataSets: previewDataSets || [],
       createdBy: req.user?.id
     });
 
@@ -90,9 +102,33 @@ export const getTemplate = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
+// Get published templates for users to browse
+export const getPublishedTemplates = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { category, search } = req.query;
+
+    const query: Record<string, unknown> = { status: 'published' };
+    
+    if (category && category !== 'all') query.category = category;
+    if (search) {
+      query.$text = { $search: search as string };
+    }
+
+    const templates = await Template.find(query)
+      .select('name slug description category thumbnail previewImages colorSchemes fontPairs usageCount sections')
+      .sort({ usageCount: -1, createdAt: -1 });
+
+    res.json({ templates });
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Update template
 export const updateTemplate = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { name, description, category, tags, components, dataSchema, status } = req.body;
+    const { name, description, category, thumbnail, previewImages, sections, colorSchemes, fontPairs, previewDataSets, status } = req.body;
 
     const template = await Template.findById(req.params.id);
     if (!template) {
@@ -103,9 +139,12 @@ export const updateTemplate = async (req: AuthRequest, res: Response): Promise<v
     if (name !== undefined) template.name = name;
     if (description !== undefined) template.description = description;
     if (category !== undefined) template.category = category;
-    if (tags !== undefined) template.tags = tags;
-    if (components !== undefined) template.components = components;
-    if (dataSchema !== undefined) template.dataSchema = dataSchema;
+    if (thumbnail !== undefined) template.thumbnail = thumbnail;
+    if (previewImages !== undefined) template.previewImages = previewImages;
+    if (sections !== undefined) template.sections = sections;
+    if (colorSchemes !== undefined) template.colorSchemes = colorSchemes;
+    if (fontPairs !== undefined) template.fontPairs = fontPairs;
+    if (previewDataSets !== undefined) template.previewDataSets = previewDataSets;
     if (status !== undefined) template.status = status;
 
     template.version += 1;
@@ -118,6 +157,7 @@ export const updateTemplate = async (req: AuthRequest, res: Response): Promise<v
   }
 };
 
+// Delete template
 export const deleteTemplate = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const template = await Template.findByIdAndDelete(req.params.id);
@@ -127,7 +167,7 @@ export const deleteTemplate = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    await TemplateInstance.deleteMany({ templateId: req.params.id });
+    await Site.deleteMany({ templateId: req.params.id });
 
     res.json({ message: 'Template deleted successfully' });
   } catch (error) {
@@ -136,6 +176,7 @@ export const deleteTemplate = async (req: AuthRequest, res: Response): Promise<v
   }
 };
 
+// Duplicate template
 export const duplicateTemplate = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const originalTemplate = await Template.findById(req.params.id);
@@ -147,14 +188,18 @@ export const duplicateTemplate = async (req: AuthRequest, res: Response): Promis
 
     const duplicatedTemplate = new Template({
       name: `${originalTemplate.name} (Copy)`,
+      slug: generateSlug(`${originalTemplate.name} copy`),
       description: originalTemplate.description,
       category: originalTemplate.category,
-      tags: originalTemplate.tags,
-      components: originalTemplate.components.map(comp => ({
-        ...comp,
+      thumbnail: originalTemplate.thumbnail,
+      previewImages: originalTemplate.previewImages,
+      sections: originalTemplate.sections.map(section => ({
+        ...section,
         id: uuidv4()
       })),
-      dataSchema: originalTemplate.dataSchema,
+      colorSchemes: originalTemplate.colorSchemes,
+      fontPairs: originalTemplate.fontPairs,
+      previewDataSets: originalTemplate.previewDataSets,
       status: 'draft',
       version: 1,
       createdBy: req.user?.id
@@ -168,6 +213,7 @@ export const duplicateTemplate = async (req: AuthRequest, res: Response): Promis
   }
 };
 
+// Publish template
 export const publishTemplate = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const template = await Template.findById(req.params.id);
@@ -187,6 +233,27 @@ export const publishTemplate = async (req: AuthRequest, res: Response): Promise<
   }
 };
 
+// Unpublish template
+export const unpublishTemplate = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const template = await Template.findById(req.params.id);
+
+    if (!template) {
+      res.status(404).json({ error: 'Template not found' });
+      return;
+    }
+
+    template.status = 'draft';
+    await template.save();
+
+    res.json(template);
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Preview template with data
 export const previewTemplate = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const template = await Template.findById(req.params.id);
@@ -196,19 +263,17 @@ export const previewTemplate = async (req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    const { data } = req.body;
+    const { previewDataSetName } = req.body;
 
-    const interpolatedComponents = template.components.map(component => {
-      const componentObj = JSON.parse(JSON.stringify(component));
-      return interpolateComponent(componentObj, data || {});
-    });
+    let previewData = template.previewDataSets[0]?.data || {};
+    if (previewDataSetName) {
+      const dataSet = template.previewDataSets.find(ds => ds.name === previewDataSetName);
+      if (dataSet) previewData = dataSet.data;
+    }
 
     res.json({
-      template: {
-        ...template.toObject(),
-        components: interpolatedComponents
-      },
-      data
+      template,
+      previewData
     });
   } catch (error) {
     const err = error as Error;
@@ -216,7 +281,8 @@ export const previewTemplate = async (req: AuthRequest, res: Response): Promise<
   }
 };
 
-export const createInstance = async (req: AuthRequest, res: Response): Promise<void> => {
+// Add section to template
+export const addSection = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const template = await Template.findById(req.params.id);
 
@@ -225,141 +291,129 @@ export const createInstance = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    const { data } = req.body;
+    const { type, name, fields, isRequired, isLocked, defaultVisible } = req.body;
 
-    const instance = new TemplateInstance({
-      templateId: template._id,
-      data,
-      status: 'rendered'
-    });
+    const newSection = {
+      id: uuidv4(),
+      type,
+      name,
+      order: template.sections.length,
+      isRequired: isRequired || false,
+      isLocked: isLocked || false,
+      defaultVisible: defaultVisible !== false,
+      fields: fields || []
+    };
 
-    const interpolatedComponents = template.components.map(component => {
-      const componentObj = JSON.parse(JSON.stringify(component));
-      return interpolateComponent(componentObj, data || {});
-    });
+    template.sections.push(newSection);
+    template.version += 1;
+    await template.save();
 
-    instance.renderedOutput = JSON.stringify({
-      template: {
-        ...template.toObject(),
-        components: interpolatedComponents
-      },
-      data
-    });
-
-    await instance.save();
-    res.status(201).json(instance);
+    res.json(template);
   } catch (error) {
     const err = error as Error;
     res.status(400).json({ error: err.message });
   }
 };
 
-export const getInstance = async (req: AuthRequest, res: Response): Promise<void> => {
+// Update section in template
+export const updateSection = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const instance = await TemplateInstance.findById(req.params.id)
-      .populate('templateId');
+    const template = await Template.findById(req.params.id);
 
-    if (!instance) {
-      res.status(404).json({ error: 'Instance not found' });
+    if (!template) {
+      res.status(404).json({ error: 'Template not found' });
       return;
     }
 
-    res.json(instance);
+    const sectionIndex = template.sections.findIndex(s => s.id === req.params.sectionId);
+    if (sectionIndex === -1) {
+      res.status(404).json({ error: 'Section not found' });
+      return;
+    }
+
+    const { name, fields, isRequired, isLocked, defaultVisible, order } = req.body;
+
+    if (name !== undefined) template.sections[sectionIndex].name = name;
+    if (fields !== undefined) template.sections[sectionIndex].fields = fields;
+    if (isRequired !== undefined) template.sections[sectionIndex].isRequired = isRequired;
+    if (isLocked !== undefined) template.sections[sectionIndex].isLocked = isLocked;
+    if (defaultVisible !== undefined) template.sections[sectionIndex].defaultVisible = defaultVisible;
+    if (order !== undefined) template.sections[sectionIndex].order = order;
+
+    template.version += 1;
+    await template.save();
+
+    res.json(template);
+  } catch (error) {
+    const err = error as Error;
+    res.status(400).json({ error: err.message });
+  }
+};
+
+// Delete section from template
+export const deleteSection = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const template = await Template.findById(req.params.id);
+
+    if (!template) {
+      res.status(404).json({ error: 'Template not found' });
+      return;
+    }
+
+    const sectionIndex = template.sections.findIndex(s => s.id === req.params.sectionId);
+    if (sectionIndex === -1) {
+      res.status(404).json({ error: 'Section not found' });
+      return;
+    }
+
+    template.sections.splice(sectionIndex, 1);
+    
+    template.sections.forEach((section, index) => {
+      section.order = index;
+    });
+
+    template.version += 1;
+    await template.save();
+
+    res.json(template);
   } catch (error) {
     const err = error as Error;
     res.status(500).json({ error: err.message });
   }
 };
 
-export const exportInstance = async (req: AuthRequest, res: Response): Promise<void> => {
+// Reorder sections
+export const reorderSections = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const instance = await TemplateInstance.findById(req.params.id);
+    const template = await Template.findById(req.params.id);
 
-    if (!instance) {
-      res.status(404).json({ error: 'Instance not found' });
+    if (!template) {
+      res.status(404).json({ error: 'Template not found' });
       return;
     }
 
-    const { format = 'html' } = req.query;
+    const { sectionOrder } = req.body;
 
-    if (format === 'html') {
-      res.setHeader('Content-Type', 'text/html');
-      res.setHeader('Content-Disposition', `attachment; filename="template-${instance._id}.html"`);
-      
-      const renderedData = JSON.parse(instance.renderedOutput || '{}');
-      const htmlContent = generateHTML(renderedData);
-      res.send(htmlContent);
-    } else {
-      res.status(400).json({ error: 'Unsupported export format. Use html, pdf, or png.' });
+    if (!Array.isArray(sectionOrder)) {
+      res.status(400).json({ error: 'sectionOrder must be an array of section IDs' });
+      return;
     }
+
+    const reorderedSections = sectionOrder.map((sectionId, index) => {
+      const section = template.sections.find(s => s.id === sectionId);
+      if (section) {
+        return { ...section, order: index };
+      }
+      return null;
+    }).filter(Boolean);
+
+    template.sections = reorderedSections as typeof template.sections;
+    template.version += 1;
+    await template.save();
+
+    res.json(template);
   } catch (error) {
     const err = error as Error;
-    res.status(500).json({ error: err.message });
+    res.status(400).json({ error: err.message });
   }
-};
-
-const generateHTML = (data: Record<string, unknown>): string => {
-  const template = data.template as Record<string, unknown> | undefined;
-  const components = (template?.components || []) as Array<Record<string, unknown>>;
-  
-  let componentsHTML = '';
-  
-  for (const comp of components) {
-    const position = comp.position as Record<string, number> | undefined;
-    const props = comp.props as Record<string, unknown> | undefined;
-    const styles = comp.styles as Record<string, unknown> | undefined;
-    
-    const style = `
-      position: absolute;
-      left: ${position?.x || 0}px;
-      top: ${position?.y || 0}px;
-      width: ${position?.width || 100}px;
-      height: ${position?.height || 50}px;
-      ${Object.entries(styles || {}).map(([k, v]) => `${k}: ${v}`).join('; ')}
-    `;
-    
-    switch (comp.type) {
-      case 'text':
-        componentsHTML += `<div style="${style}; font-size: ${props?.fontSize || 16}px; color: ${props?.color || '#000'}; font-family: ${props?.fontFamily || 'Arial'}; text-align: ${props?.textAlign || 'left'}">${props?.content || ''}</div>`;
-        break;
-      case 'heading':
-        const level = props?.level || 1;
-        componentsHTML += `<h${level} style="${style}; color: ${props?.color || '#000'}; font-family: ${props?.fontFamily || 'Arial'}; text-align: ${props?.textAlign || 'left'}">${props?.content || ''}</h${level}>`;
-        break;
-      case 'image':
-        componentsHTML += `<img src="${props?.src || ''}" alt="${props?.alt || ''}" style="${style}; object-fit: ${props?.objectFit || 'cover'}; border-radius: ${props?.borderRadius || 0}px" />`;
-        break;
-      case 'divider':
-        const isHorizontal = props?.orientation !== 'vertical';
-        componentsHTML += `<div style="${style}; border-${isHorizontal ? 'bottom' : 'right'}: ${props?.thickness || 1}px ${props?.style || 'solid'} ${props?.color || '#ccc'}"></div>`;
-        break;
-      case 'shape':
-        const borderRadius = props?.shape === 'circle' ? '50%' : `${props?.borderRadius || 0}px`;
-        componentsHTML += `<div style="${style}; background-color: ${props?.backgroundColor || '#f0f0f0'}; border: ${props?.borderWidth || 1}px solid ${props?.borderColor || '#ccc'}; border-radius: ${borderRadius}"></div>`;
-        break;
-      default:
-        componentsHTML += `<div style="${style}">${JSON.stringify(props)}</div>`;
-    }
-  }
-  
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Template Export</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; }
-    .template-container { position: relative; width: 800px; height: 600px; margin: 0 auto; background: white; }
-  </style>
-</head>
-<body>
-  <div class="template-container">
-    ${componentsHTML}
-  </div>
-</body>
-</html>
-  `.trim();
 };

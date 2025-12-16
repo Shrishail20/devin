@@ -1,16 +1,18 @@
 import { Router } from 'express';
 import templateRoutes from './templateRoutes';
-import instanceRoutes from './instanceRoutes';
+import siteRoutes from './siteRoutes';
+import guestRoutes from './guestRoutes';
+import wishRoutes from './wishRoutes';
 import mediaRoutes from './mediaRoutes';
 import authRoutes from './authRoutes';
-import componentRoutes from './componentRoutes';
 
 const router = Router();
 
 router.use('/templates', templateRoutes);
-router.use('/instances', instanceRoutes);
+router.use('/sites', siteRoutes);
+router.use('/guests', guestRoutes);
+router.use('/wishes', wishRoutes);
 router.use('/media', mediaRoutes);
 router.use('/auth', authRoutes);
-router.use('/components', componentRoutes);
 
 export default router;
