@@ -14,6 +14,7 @@ interface AuthStore {
   logout: () => void;
   checkAuth: () => Promise<void>;
   clearError: () => void;
+  setAuth: (token: string, user: User) => void;
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -81,6 +82,11 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       clearError: () => set({ error: null }),
+
+      setAuth: (token: string, user: User) => {
+        localStorage.setItem('token', token);
+        set({ user, token, isAuthenticated: true, isLoading: false });
+      },
     }),
     {
       name: 'auth-storage',
