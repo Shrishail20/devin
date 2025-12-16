@@ -30,7 +30,7 @@ export default function SitesPage() {
     queryKey: ['sites'],
     queryFn: async () => {
       const response = await siteApi.getAll()
-      return response.data as Site[]
+      return (response.data.sites || response.data || []) as Site[]
     },
   })
 

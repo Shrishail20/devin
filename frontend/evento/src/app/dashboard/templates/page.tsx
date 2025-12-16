@@ -29,7 +29,7 @@ export default function TemplatesPage() {
     queryKey: ['templates', 'published'],
     queryFn: async () => {
       const response = await templateApi.getPublished()
-      return response.data as Template[]
+      return (response.data.templates || response.data || []) as Template[]
     },
   })
 
