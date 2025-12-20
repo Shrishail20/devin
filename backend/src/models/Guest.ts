@@ -7,9 +7,11 @@ export interface IGuest extends Document {
   phone?: string;
   status: 'pending' | 'attending' | 'not_attending' | 'maybe';
   numberOfGuests: number;
+  partySize: number;
   guestNames?: string[];
   mealChoice?: string;
   dietaryRestrictions?: string;
+  dietaryNotes?: string;
   message?: string;
   customFields?: Record<string, unknown>;
   ipAddress?: string;
@@ -29,9 +31,11 @@ const GuestSchema = new Schema<IGuest>({
     default: 'pending' 
   },
   numberOfGuests: { type: Number, default: 1, min: 1 },
+  partySize: { type: Number, default: 1, min: 1 },
   guestNames: [{ type: String }],
   mealChoice: { type: String },
   dietaryRestrictions: { type: String },
+  dietaryNotes: { type: String },
   message: { type: String },
   customFields: { type: Schema.Types.Mixed, default: {} },
   ipAddress: { type: String },

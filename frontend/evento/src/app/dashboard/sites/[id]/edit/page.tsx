@@ -21,8 +21,8 @@ import {
   Heart
 } from 'lucide-react'
 import Link from 'next/link'
-import { siteApi } from '@/lib/api'
-import { Site, Template, SectionDefinition } from '@/types'
+import { micrositeApi } from '@/lib/api'
+import { MicrositeWithDetails, TemplateVersion, TemplateSection, MicrositeSection } from '@/types'
 
 type TabType = 'content' | 'design' | 'settings'
 
@@ -37,17 +37,17 @@ export default function SiteEditorPage() {
   const [hasChanges, setHasChanges] = useState(false)
 
   const { data: site, isLoading } = useQuery({
-    queryKey: ['site', siteId],
+    queryKey: ['microsite', siteId],
     queryFn: async () => {
-      const response = await siteApi.getOne(siteId)
-      return response.data as Site
+      const response = await micrositeApi.getOne(siteId)
+      return response.data as MicrositeWithDetails
     },
   })
 
   const updateMutation = useMutation({
-    mutationFn: (data: Partial<Site>) => siteApi.update(siteId, data),
+    mutationFn: (data: Partial<MicrositeWithDetails>) => micrositeApi.update(siteId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['site', siteId] })
+      queryClient.invalidateQueries({ queryKey: ['microsite', siteId] })
       setHasChanges(false)
       Swal.fire({
         icon: 'success',
@@ -66,9 +66,9 @@ export default function SiteEditorPage() {
   })
 
   const publishMutation = useMutation({
-    mutationFn: () => siteApi.publish(siteId),
+    mutationFn: () => micrositeApi.publish(siteId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['site', siteId] })
+      queryClient.invalidateQueries({ queryKey: ['microsite', siteId] })
       Swal.fire({
         icon: 'success',
         title: 'Published!',
@@ -89,7 +89,7 @@ export default function SiteEditorPage() {
     },
   })
 
-  const template = site?.templateId as Template | undefined
+  const version = site?.version as TemplateVersion | undefined
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev => 

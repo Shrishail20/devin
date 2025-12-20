@@ -18,8 +18,8 @@ import {
   Copy,
   QrCode
 } from 'lucide-react'
-import { siteApi } from '@/lib/api'
-import { Site } from '@/types'
+import { micrositeApi } from '@/lib/api'
+import { Microsite } from '@/types'
 
 export default function SitesPage() {
   const queryClient = useQueryClient()
@@ -27,17 +27,17 @@ export default function SitesPage() {
   const [filter, setFilter] = useState<'all' | 'published' | 'draft'>('all')
 
   const { data: sites, isLoading } = useQuery({
-    queryKey: ['sites'],
+    queryKey: ['microsites'],
     queryFn: async () => {
-      const response = await siteApi.getAll()
-      return (response.data.sites || response.data || []) as Site[]
+      const response = await micrositeApi.getAll()
+      return (response.data.microsites || response.data || []) as Microsite[]
     },
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => siteApi.delete(id),
+    mutationFn: (id: string) => micrositeApi.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sites'] })
+      queryClient.invalidateQueries({ queryKey: ['microsites'] })
       Swal.fire({
         icon: 'success',
         title: 'Deleted',
@@ -48,7 +48,7 @@ export default function SitesPage() {
     },
   })
 
-  const handleDelete = async (site: Site) => {
+  const handleDelete = async (site: Microsite) => {
     const result = await Swal.fire({
       title: 'Delete Site?',
       text: `Are you sure you want to delete "${site.title}"? This cannot be undone.`,
@@ -63,7 +63,7 @@ export default function SitesPage() {
     }
   }
 
-  const handleCopyLink = (site: Site) => {
+  const handleCopyLink = (site: Microsite) => {
     const url = `${window.location.origin}/e/${site.slug}`
     navigator.clipboard.writeText(url)
     Swal.fire({
@@ -167,7 +167,7 @@ function SiteCard({
   onDelete,
   onCopyLink
 }: { 
-  site: Site
+  site: Microsite
   onDelete: () => void
   onCopyLink: () => void
 }) {
@@ -236,27 +236,20 @@ function SiteCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-4 text-center">
+      <div className="grid grid-cols-2 gap-4 mb-4 text-center">
         <div className="p-2 bg-gray-50 rounded-lg">
           <div className="flex items-center justify-center gap-1 text-gray-500 mb-1">
             <Eye className="w-4 h-4" />
           </div>
-          <p className="text-lg font-semibold text-gray-900">{site.stats?.views || 0}</p>
+          <p className="text-lg font-semibold text-gray-900">{site.viewCount || 0}</p>
           <p className="text-xs text-gray-500">Views</p>
         </div>
         <div className="p-2 bg-gray-50 rounded-lg">
           <div className="flex items-center justify-center gap-1 text-gray-500 mb-1">
             <Users className="w-4 h-4" />
           </div>
-          <p className="text-lg font-semibold text-gray-900">{site.stats?.rsvpCount || 0}</p>
-          <p className="text-xs text-gray-500">RSVPs</p>
-        </div>
-        <div className="p-2 bg-gray-50 rounded-lg">
-          <div className="flex items-center justify-center gap-1 text-gray-500 mb-1">
-            <Heart className="w-4 h-4" />
-          </div>
-          <p className="text-lg font-semibold text-gray-900">{site.stats?.wishCount || 0}</p>
-          <p className="text-xs text-gray-500">Wishes</p>
+          <p className="text-lg font-semibold text-gray-900">{site.uniqueViewCount || 0}</p>
+          <p className="text-xs text-gray-500">Unique</p>
         </div>
       </div>
 

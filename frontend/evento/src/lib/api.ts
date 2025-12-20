@@ -45,12 +45,14 @@ export const templateApi = {
   getOne: (id: string) => api.get(`/templates/${id}`),
   create: (data: any) => api.post('/templates', data),
   update: (id: string, data: any) => api.put(`/templates/${id}`, data),
+  updateVersion: (id: string, data: any) => api.put(`/templates/${id}/version`, data),
   delete: (id: string) => api.delete(`/templates/${id}`),
   duplicate: (id: string) => api.post(`/templates/${id}/duplicate`),
   publish: (id: string) => api.post(`/templates/${id}/publish`),
   unpublish: (id: string) => api.post(`/templates/${id}/unpublish`),
-  preview: (id: string, previewDataId?: string) =>
-    api.post(`/templates/${id}/preview`, { previewDataId }),
+  preview: (id: string) => api.post(`/templates/${id}/preview`),
+  createNewVersion: (id: string, changelog?: string) =>
+    api.post(`/templates/${id}/new-version`, { changelog }),
   addSection: (id: string, section: any) =>
     api.post(`/templates/${id}/sections`, section),
   updateSection: (id: string, sectionId: string, data: any) =>
@@ -61,6 +63,31 @@ export const templateApi = {
     api.post(`/templates/${id}/sections/reorder`, { sectionOrder }),
 }
 
+// Microsite API (new - replaces siteApi for new schema)
+export const micrositeApi = {
+  getAll: () => api.get('/microsites'),
+  getOne: (id: string) => api.get(`/microsites/${id}`),
+  getPublic: (slug: string) => api.get(`/microsites/public/${slug}`),
+  create: (templateId: string, title: string) =>
+    api.post('/microsites', { templateId, title }),
+  update: (id: string, data: any) => api.put(`/microsites/${id}`, data),
+  updateSection: (id: string, sectionId: string, data: any) =>
+    api.put(`/microsites/${id}/sections/${sectionId}`, data),
+  toggleSection: (id: string, sectionId: string) =>
+    api.post(`/microsites/${id}/sections/${sectionId}/toggle`),
+  reorderSections: (id: string, sectionOrder: string[]) =>
+    api.post(`/microsites/${id}/sections/reorder`, { sectionOrder }),
+  publish: (id: string) => api.post(`/microsites/${id}/publish`),
+  unpublish: (id: string) => api.post(`/microsites/${id}/unpublish`),
+  delete: (id: string) => api.delete(`/microsites/${id}`),
+  getStats: (id: string) => api.get(`/microsites/${id}/stats`),
+  submitRsvp: (slug: string, data: any) =>
+    api.post(`/microsites/public/${slug}/rsvp`, data),
+  submitWish: (slug: string, name: string, message: string) =>
+    api.post(`/microsites/public/${slug}/wish`, { name, message }),
+}
+
+// Legacy Site API (for backward compatibility)
 export const siteApi = {
   getAll: () => api.get('/sites'),
   getOne: (id: string) => api.get(`/sites/${id}`),

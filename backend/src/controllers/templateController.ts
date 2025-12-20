@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { Template, Site } from '../models';
+import { Template, TemplateVersion, TemplateSection, Microsite, MicrositeSection } from '../models';
 import { AuthRequest } from '../middleware';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -14,36 +14,52 @@ const generateSlug = (name: string): string => {
 // Create a new template (admin only)
 export const createTemplate = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { name, description, category, sections, colorSchemes, fontPairs, previewDataSets } = req.body;
+    const { name, description, category, thumbnail, isPremium } = req.body;
 
     const slug = generateSlug(name);
 
+    // Create the template
     const template = new Template({
-      name,
       slug,
+      name,
       description,
       category,
-      sections: sections || [],
-      colorSchemes: colorSchemes || [],
-      fontPairs: fontPairs || [],
-      previewDataSets: previewDataSets || [],
+      thumbnail,
+      isPremium: isPremium || false,
+      currentVersion: 1,
+      isActive: false,
       createdBy: req.user?.id
     });
 
     await template.save();
-    res.status(201).json(template);
+
+    // Create initial version
+    const version = new TemplateVersion({
+      templateId: template._id,
+      version: 1,
+      colorSchemes: [],
+      fontPairs: [],
+      defaultColorScheme: '',
+      defaultFontPair: '',
+      changelog: 'Initial version'
+    });
+
+    await version.save();
+
+    res.status(201).json({ template, version });
   } catch (error) {
     const err = error as Error;
     res.status(400).json({ error: err.message });
   }
 };
 
+// Get all templates (admin)
 export const getTemplates = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { 
       page = 1, 
       limit = 10, 
-      status, 
+      isActive, 
       category, 
       search,
       sortBy = 'createdAt',
@@ -52,8 +68,8 @@ export const getTemplates = async (req: AuthRequest, res: Response): Promise<voi
 
     const query: Record<string, unknown> = {};
     
-    if (status) query.status = status;
-    if (category) query.category = category;
+    if (isActive !== undefined) query.isActive = isActive === 'true';
+    if (category && category !== 'all') query.category = category;
     if (search) {
       query.$text = { $search: search as string };
     }
@@ -85,6 +101,7 @@ export const getTemplates = async (req: AuthRequest, res: Response): Promise<voi
   }
 };
 
+// Get single template with current version and sections
 export const getTemplate = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const template = await Template.findById(req.params.id)
@@ -95,7 +112,18 @@ export const getTemplate = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    res.json(template);
+    // Get current version
+    const version = await TemplateVersion.findOne({
+      templateId: template._id,
+      version: template.currentVersion
+    });
+
+    // Get sections for this version
+    const sections = version ? await TemplateSection.find({
+      versionId: version._id
+    }).sort({ order: 1 }) : [];
+
+    res.json({ template, version, sections });
   } catch (error) {
     const err = error as Error;
     res.status(500).json({ error: err.message });
@@ -107,28 +135,48 @@ export const getPublishedTemplates = async (req: AuthRequest, res: Response): Pr
   try {
     const { category, search } = req.query;
 
-    const query: Record<string, unknown> = { status: 'published' };
+    const query: Record<string, unknown> = { isActive: true };
     
     if (category && category !== 'all') query.category = category;
     if (search) {
       query.$text = { $search: search as string };
     }
 
-        const templates = await Template.find(query)
-          .select('name slug description category thumbnail previewImages colorSchemes fontPairs usageCount sections previewDataSets')
-          .sort({ usageCount: -1, createdAt: -1 });
+    const templates = await Template.find(query)
+      .select('name slug description category thumbnail currentVersion usageCount isPremium')
+      .sort({ usageCount: -1, createdAt: -1 });
 
-    res.json({ templates });
+    // Get versions and sections for each template
+    const templatesWithDetails = await Promise.all(
+      templates.map(async (template) => {
+        const version = await TemplateVersion.findOne({
+          templateId: template._id,
+          version: template.currentVersion
+        });
+
+        const sections = version ? await TemplateSection.find({
+          versionId: version._id
+        }).sort({ order: 1 }) : [];
+
+        return {
+          ...template.toObject(),
+          version,
+          sections
+        };
+      })
+    );
+
+    res.json({ templates: templatesWithDetails });
   } catch (error) {
     const err = error as Error;
     res.status(500).json({ error: err.message });
   }
 };
 
-// Update template
+// Update template basic info
 export const updateTemplate = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { name, description, category, thumbnail, previewImages, sections, colorSchemes, fontPairs, previewDataSets, status } = req.body;
+    const { name, description, category, thumbnail, isPremium } = req.body;
 
     const template = await Template.findById(req.params.id);
     if (!template) {
@@ -140,14 +188,8 @@ export const updateTemplate = async (req: AuthRequest, res: Response): Promise<v
     if (description !== undefined) template.description = description;
     if (category !== undefined) template.category = category;
     if (thumbnail !== undefined) template.thumbnail = thumbnail;
-    if (previewImages !== undefined) template.previewImages = previewImages;
-    if (sections !== undefined) template.sections = sections;
-    if (colorSchemes !== undefined) template.colorSchemes = colorSchemes;
-    if (fontPairs !== undefined) template.fontPairs = fontPairs;
-    if (previewDataSets !== undefined) template.previewDataSets = previewDataSets;
-    if (status !== undefined) template.status = status;
+    if (isPremium !== undefined) template.isPremium = isPremium;
 
-    template.version += 1;
     await template.save();
 
     res.json(template);
@@ -157,17 +199,69 @@ export const updateTemplate = async (req: AuthRequest, res: Response): Promise<v
   }
 };
 
+// Update template version (design options)
+export const updateTemplateVersion = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { colorSchemes, fontPairs, defaultColorScheme, defaultFontPair } = req.body;
+
+    const template = await Template.findById(req.params.id);
+    if (!template) {
+      res.status(404).json({ error: 'Template not found' });
+      return;
+    }
+
+    const version = await TemplateVersion.findOne({
+      templateId: template._id,
+      version: template.currentVersion
+    });
+
+    if (!version) {
+      res.status(404).json({ error: 'Version not found' });
+      return;
+    }
+
+    if (colorSchemes !== undefined) version.colorSchemes = colorSchemes;
+    if (fontPairs !== undefined) version.fontPairs = fontPairs;
+    if (defaultColorScheme !== undefined) version.defaultColorScheme = defaultColorScheme;
+    if (defaultFontPair !== undefined) version.defaultFontPair = defaultFontPair;
+
+    await version.save();
+
+    res.json(version);
+  } catch (error) {
+    const err = error as Error;
+    res.status(400).json({ error: err.message });
+  }
+};
+
 // Delete template
 export const deleteTemplate = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const template = await Template.findByIdAndDelete(req.params.id);
+    const template = await Template.findById(req.params.id);
 
     if (!template) {
       res.status(404).json({ error: 'Template not found' });
       return;
     }
 
-    await Site.deleteMany({ templateId: req.params.id });
+    // Delete all versions
+    const versions = await TemplateVersion.find({ templateId: template._id });
+    
+    // Delete all sections for all versions
+    for (const version of versions) {
+      await TemplateSection.deleteMany({ versionId: version._id });
+    }
+    
+    await TemplateVersion.deleteMany({ templateId: template._id });
+
+    // Delete microsites and their sections
+    const microsites = await Microsite.find({ templateId: template._id });
+    for (const microsite of microsites) {
+      await MicrositeSection.deleteMany({ micrositeId: microsite._id });
+    }
+    await Microsite.deleteMany({ templateId: template._id });
+
+    await Template.findByIdAndDelete(req.params.id);
 
     res.json({ message: 'Template deleted successfully' });
   } catch (error) {
@@ -186,26 +280,65 @@ export const duplicateTemplate = async (req: AuthRequest, res: Response): Promis
       return;
     }
 
+    // Create new template
     const duplicatedTemplate = new Template({
-      name: `${originalTemplate.name} (Copy)`,
       slug: generateSlug(`${originalTemplate.name} copy`),
+      name: `${originalTemplate.name} (Copy)`,
       description: originalTemplate.description,
       category: originalTemplate.category,
       thumbnail: originalTemplate.thumbnail,
-      previewImages: originalTemplate.previewImages,
-      sections: originalTemplate.sections.map(section => ({
-        ...section,
-        id: uuidv4()
-      })),
-      colorSchemes: originalTemplate.colorSchemes,
-      fontPairs: originalTemplate.fontPairs,
-      previewDataSets: originalTemplate.previewDataSets,
-      status: 'draft',
-      version: 1,
+      currentVersion: 1,
+      isActive: false,
+      isPremium: originalTemplate.isPremium,
       createdBy: req.user?.id
     });
 
     await duplicatedTemplate.save();
+
+    // Get original version
+    const originalVersion = await TemplateVersion.findOne({
+      templateId: originalTemplate._id,
+      version: originalTemplate.currentVersion
+    });
+
+    if (originalVersion) {
+      // Create new version
+      const newVersion = new TemplateVersion({
+        templateId: duplicatedTemplate._id,
+        version: 1,
+        colorSchemes: originalVersion.colorSchemes,
+        fontPairs: originalVersion.fontPairs,
+        defaultColorScheme: originalVersion.defaultColorScheme,
+        defaultFontPair: originalVersion.defaultFontPair,
+        changelog: 'Duplicated from ' + originalTemplate.name
+      });
+
+      await newVersion.save();
+
+      // Copy sections
+      const originalSections = await TemplateSection.find({ versionId: originalVersion._id });
+      
+      for (const section of originalSections) {
+        const newSection = new TemplateSection({
+          versionId: newVersion._id,
+          sectionId: 'sec_' + uuidv4().slice(0, 8),
+          type: section.type,
+          name: section.name,
+          description: section.description,
+          order: section.order,
+          isRequired: section.isRequired,
+          canDisable: section.canDisable,
+          fields: section.fields.map(field => ({
+            ...field,
+            fieldId: 'fld_' + uuidv4().slice(0, 8)
+          })),
+          sampleValues: section.sampleValues
+        });
+
+        await newSection.save();
+      }
+    }
+
     res.status(201).json(duplicatedTemplate);
   } catch (error) {
     const err = error as Error;
@@ -213,7 +346,7 @@ export const duplicateTemplate = async (req: AuthRequest, res: Response): Promis
   }
 };
 
-// Publish template
+// Publish template (make active)
 export const publishTemplate = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const template = await Template.findById(req.params.id);
@@ -223,7 +356,7 @@ export const publishTemplate = async (req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    template.status = 'published';
+    template.isActive = true;
     await template.save();
 
     res.json(template);
@@ -243,7 +376,7 @@ export const unpublishTemplate = async (req: AuthRequest, res: Response): Promis
       return;
     }
 
-    template.status = 'draft';
+    template.isActive = false;
     await template.save();
 
     res.json(template);
@@ -253,28 +386,67 @@ export const unpublishTemplate = async (req: AuthRequest, res: Response): Promis
   }
 };
 
-// Preview template with data
-export const previewTemplate = async (req: AuthRequest, res: Response): Promise<void> => {
+// Create new version of template
+export const createNewVersion = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const template = await Template.findById(req.params.id);
+    const { changelog } = req.body;
 
+    const template = await Template.findById(req.params.id);
     if (!template) {
       res.status(404).json({ error: 'Template not found' });
       return;
     }
 
-    const { previewDataSetName } = req.body;
+    // Get current version
+    const currentVersion = await TemplateVersion.findOne({
+      templateId: template._id,
+      version: template.currentVersion
+    });
 
-    let previewData = template.previewDataSets[0]?.data || {};
-    if (previewDataSetName) {
-      const dataSet = template.previewDataSets.find(ds => ds.name === previewDataSetName);
-      if (dataSet) previewData = dataSet.data;
+    if (!currentVersion) {
+      res.status(404).json({ error: 'Current version not found' });
+      return;
     }
 
-    res.json({
-      template,
-      previewData
+    // Create new version
+    const newVersionNumber = template.currentVersion + 1;
+    const newVersion = new TemplateVersion({
+      templateId: template._id,
+      version: newVersionNumber,
+      colorSchemes: currentVersion.colorSchemes,
+      fontPairs: currentVersion.fontPairs,
+      defaultColorScheme: currentVersion.defaultColorScheme,
+      defaultFontPair: currentVersion.defaultFontPair,
+      changelog: changelog || `Version ${newVersionNumber}`
     });
+
+    await newVersion.save();
+
+    // Copy sections to new version
+    const currentSections = await TemplateSection.find({ versionId: currentVersion._id });
+    
+    for (const section of currentSections) {
+      const newSection = new TemplateSection({
+        versionId: newVersion._id,
+        sectionId: section.sectionId,
+        type: section.type,
+        name: section.name,
+        description: section.description,
+        order: section.order,
+        isRequired: section.isRequired,
+        canDisable: section.canDisable,
+        fields: section.fields,
+        sampleValues: section.sampleValues
+      });
+
+      await newSection.save();
+    }
+
+    // Update template current version
+    template.currentVersion = newVersionNumber;
+    await template.save();
+
+    res.status(201).json({ template, version: newVersion });
   } catch (error) {
     const err = error as Error;
     res.status(500).json({ error: err.message });
@@ -291,91 +463,104 @@ export const addSection = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const { type, name, fields, isRequired, isLocked, defaultVisible } = req.body;
-
-    const newSection = {
-      id: uuidv4(),
-      type,
-      name,
-      order: template.sections.length,
-      isRequired: isRequired || false,
-      isLocked: isLocked || false,
-      defaultVisible: defaultVisible !== false,
-      fields: fields || []
-    };
-
-    template.sections.push(newSection);
-    template.version += 1;
-    await template.save();
-
-    res.json(template);
-  } catch (error) {
-    const err = error as Error;
-    res.status(400).json({ error: err.message });
-  }
-};
-
-// Update section in template
-export const updateSection = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const template = await Template.findById(req.params.id);
-
-    if (!template) {
-      res.status(404).json({ error: 'Template not found' });
-      return;
-    }
-
-    const sectionIndex = template.sections.findIndex(s => s.id === req.params.sectionId);
-    if (sectionIndex === -1) {
-      res.status(404).json({ error: 'Section not found' });
-      return;
-    }
-
-    const { name, fields, isRequired, isLocked, defaultVisible, order } = req.body;
-
-    if (name !== undefined) template.sections[sectionIndex].name = name;
-    if (fields !== undefined) template.sections[sectionIndex].fields = fields;
-    if (isRequired !== undefined) template.sections[sectionIndex].isRequired = isRequired;
-    if (isLocked !== undefined) template.sections[sectionIndex].isLocked = isLocked;
-    if (defaultVisible !== undefined) template.sections[sectionIndex].defaultVisible = defaultVisible;
-    if (order !== undefined) template.sections[sectionIndex].order = order;
-
-    template.version += 1;
-    await template.save();
-
-    res.json(template);
-  } catch (error) {
-    const err = error as Error;
-    res.status(400).json({ error: err.message });
-  }
-};
-
-// Delete section from template
-export const deleteSection = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const template = await Template.findById(req.params.id);
-
-    if (!template) {
-      res.status(404).json({ error: 'Template not found' });
-      return;
-    }
-
-    const sectionIndex = template.sections.findIndex(s => s.id === req.params.sectionId);
-    if (sectionIndex === -1) {
-      res.status(404).json({ error: 'Section not found' });
-      return;
-    }
-
-    template.sections.splice(sectionIndex, 1);
-    
-    template.sections.forEach((section, index) => {
-      section.order = index;
+    const version = await TemplateVersion.findOne({
+      templateId: template._id,
+      version: template.currentVersion
     });
 
-    template.version += 1;
-    await template.save();
+    if (!version) {
+      res.status(404).json({ error: 'Version not found' });
+      return;
+    }
 
-    res.json(template);
+    const { type, name, description, fields, isRequired, canDisable, sampleValues } = req.body;
+
+    // Get current max order
+    const existingSections = await TemplateSection.find({ versionId: version._id });
+    const maxOrder = existingSections.length > 0 
+      ? Math.max(...existingSections.map(s => s.order)) 
+      : -1;
+
+    const newSection = new TemplateSection({
+      versionId: version._id,
+      sectionId: 'sec_' + uuidv4().slice(0, 8),
+      type,
+      name,
+      description: description || '',
+      order: maxOrder + 1,
+      isRequired: isRequired || false,
+      canDisable: canDisable !== false,
+      fields: (fields || []).map((field: Record<string, unknown>) => ({
+        ...field,
+        fieldId: field.fieldId || 'fld_' + uuidv4().slice(0, 8)
+      })),
+      sampleValues: sampleValues || {}
+    });
+
+    await newSection.save();
+
+    res.status(201).json(newSection);
+  } catch (error) {
+    const err = error as Error;
+    res.status(400).json({ error: err.message });
+  }
+};
+
+// Update section
+export const updateSection = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const section = await TemplateSection.findById(req.params.sectionId);
+
+    if (!section) {
+      res.status(404).json({ error: 'Section not found' });
+      return;
+    }
+
+    const { name, description, fields, isRequired, canDisable, sampleValues, order } = req.body;
+
+    if (name !== undefined) section.name = name;
+    if (description !== undefined) section.description = description;
+    if (fields !== undefined) {
+      section.fields = fields.map((field: Record<string, unknown>) => ({
+        ...field,
+        fieldId: field.fieldId || 'fld_' + uuidv4().slice(0, 8)
+      }));
+    }
+    if (isRequired !== undefined) section.isRequired = isRequired;
+    if (canDisable !== undefined) section.canDisable = canDisable;
+    if (sampleValues !== undefined) section.sampleValues = sampleValues;
+    if (order !== undefined) section.order = order;
+
+    await section.save();
+
+    res.json(section);
+  } catch (error) {
+    const err = error as Error;
+    res.status(400).json({ error: err.message });
+  }
+};
+
+// Delete section
+export const deleteSection = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const section = await TemplateSection.findByIdAndDelete(req.params.sectionId);
+
+    if (!section) {
+      res.status(404).json({ error: 'Section not found' });
+      return;
+    }
+
+    // Reorder remaining sections
+    const remainingSections = await TemplateSection.find({ 
+      versionId: section.versionId 
+    }).sort({ order: 1 });
+
+    for (let i = 0; i < remainingSections.length; i++) {
+      remainingSections[i].order = i;
+      await remainingSections[i].save();
+    }
+
+    res.json({ message: 'Section deleted successfully' });
   } catch (error) {
     const err = error as Error;
     res.status(500).json({ error: err.message });
@@ -392,6 +577,16 @@ export const reorderSections = async (req: AuthRequest, res: Response): Promise<
       return;
     }
 
+    const version = await TemplateVersion.findOne({
+      templateId: template._id,
+      version: template.currentVersion
+    });
+
+    if (!version) {
+      res.status(404).json({ error: 'Version not found' });
+      return;
+    }
+
     const { sectionOrder } = req.body;
 
     if (!Array.isArray(sectionOrder)) {
@@ -399,21 +594,49 @@ export const reorderSections = async (req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    const reorderedSections = sectionOrder.map((sectionId, index) => {
-      const section = template.sections.find(s => s.id === sectionId);
-      if (section) {
-        return { ...section, order: index };
-      }
-      return null;
-    }).filter(Boolean);
+    // Update order for each section
+    for (let i = 0; i < sectionOrder.length; i++) {
+      await TemplateSection.findByIdAndUpdate(sectionOrder[i], { order: i });
+    }
 
-    template.sections = reorderedSections as typeof template.sections;
-    template.version += 1;
-    await template.save();
+    const sections = await TemplateSection.find({ versionId: version._id }).sort({ order: 1 });
 
-    res.json(template);
+    res.json({ sections });
   } catch (error) {
     const err = error as Error;
     res.status(400).json({ error: err.message });
+  }
+};
+
+// Preview template with sample data
+export const previewTemplate = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const template = await Template.findById(req.params.id);
+
+    if (!template) {
+      res.status(404).json({ error: 'Template not found' });
+      return;
+    }
+
+    const version = await TemplateVersion.findOne({
+      templateId: template._id,
+      version: template.currentVersion
+    });
+
+    if (!version) {
+      res.status(404).json({ error: 'Version not found' });
+      return;
+    }
+
+    const sections = await TemplateSection.find({ versionId: version._id }).sort({ order: 1 });
+
+    res.json({
+      template,
+      version,
+      sections
+    });
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({ error: err.message });
   }
 };

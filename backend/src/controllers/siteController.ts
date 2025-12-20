@@ -10,28 +10,28 @@ const generateSlug = (title: string): string => {
     .replace(/^-|-$/g, '') + '-' + uuidv4().slice(0, 8);
 };
 
-// Create a new site from a template
+// Create a new site from a template (LEGACY - use microsites instead)
 export const createSite = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { templateId, title } = req.body;
 
-    const template = await Template.findById(templateId);
+    const template = await Template.findById(templateId) as any;
     if (!template) {
       res.status(404).json({ error: 'Template not found' });
       return;
     }
 
-    if (template.status !== 'published') {
+    if (!template.isActive) {
       res.status(400).json({ error: 'Template is not published' });
       return;
     }
 
     const slug = generateSlug(title);
 
-    // Initialize sections from template
-    const sections = template.sections.map((section, index) => ({
+    // Initialize sections from template (legacy - sections are now in separate collection)
+    const sections = (template.sections || []).map((section: any, index: number) => ({
       sectionId: section.id,
-      visible: section.defaultVisible,
+      visible: section.defaultVisible !== false,
       order: index,
       content: {}
     }));
@@ -39,12 +39,12 @@ export const createSite = async (req: AuthRequest, res: Response): Promise<void>
     const site = new Site({
       userId: req.user?.id,
       templateId: template._id,
-      templateVersion: template.version,
+      templateVersion: template.currentVersion || 1,
       title,
       slug,
       sections,
-      selectedColorScheme: template.colorSchemes[0]?.id || '',
-      selectedFontPair: template.fontPairs[0]?.id || ''
+      selectedColorScheme: (template.colorSchemes || [])[0]?.id || '',
+      selectedFontPair: (template.fontPairs || [])[0]?.id || ''
     });
 
     await site.save();
