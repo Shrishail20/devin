@@ -16,18 +16,18 @@ import {
   HelpCircle,
   Sparkles
 } from 'lucide-react'
-import { siteApi, guestApi, wishApi } from '@/lib/api'
-import { Site, Template } from '@/types'
+import { micrositeApi, wishApi } from '@/lib/api'
+import { MicrositeWithDetails } from '@/types'
 
 export default function PublicEventPage() {
   const params = useParams()
   const slug = params.slug as string
   
   const { data: site, isLoading, error } = useQuery({
-    queryKey: ['public-site', slug],
+    queryKey: ['public-microsite', slug],
     queryFn: async () => {
-      const response = await siteApi.getBySlug(slug)
-      return response.data as Site
+      const response = await micrositeApi.getPublic(slug)
+      return response.data as MicrositeWithDetails
     },
   })
 
@@ -56,8 +56,6 @@ export default function PublicEventPage() {
     )
   }
 
-  const template = site.templateId as Template
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50">
       <HeroSection site={site} />
@@ -77,7 +75,7 @@ export default function PublicEventPage() {
   )
 }
 
-function HeroSection({ site }: { site: Site }) {
+function HeroSection({ site }: { site: MicrositeWithDetails }) {
   const eventDate = site.settings?.eventDate ? new Date(site.settings.eventDate) : null
   
   return (
@@ -96,11 +94,7 @@ function HeroSection({ site }: { site: Site }) {
           {site.title}
         </h1>
         
-        {site.description && (
-          <p className="text-lg sm:text-xl text-gray-600 mb-8">
-            {site.description}
-          </p>
-        )}
+        {/* Description can be added from section values */}
         
         {eventDate && (
           <div className="inline-flex flex-col sm:flex-row items-center gap-4 sm:gap-8 bg-white/80 backdrop-blur-lg rounded-2xl px-6 py-4 shadow-lg">
@@ -131,19 +125,20 @@ function HeroSection({ site }: { site: Site }) {
   )
 }
 
-function RsvpSection({ site }: { site: Site }) {
+function RsvpSection({ site }: { site: MicrositeWithDetails }) {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
     status: 'attending' as 'attending' | 'not_attending' | 'maybe',
-    numberOfGuests: 1,
+    partySize: 1,
+    dietaryNotes: '',
     message: '',
   })
   const [submitted, setSubmitted] = useState(false)
 
   const submitMutation = useMutation({
-    mutationFn: () => guestApi.submitRsvp(site._id, formData),
+    mutationFn: () => micrositeApi.submitRsvp(site.slug, formData),
     onSuccess: () => {
       setSubmitted(true)
       Swal.fire({
@@ -270,11 +265,11 @@ function RsvpSection({ site }: { site: Site }) {
           {formData.status === 'attending' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Number of Guests
+                Party Size
               </label>
               <select
-                value={formData.numberOfGuests}
-                onChange={(e) => setFormData({ ...formData, numberOfGuests: parseInt(e.target.value) })}
+                value={formData.partySize}
+                onChange={(e) => setFormData({ ...formData, partySize: parseInt(e.target.value) })}
                 className="input-field"
               >
                 {[1, 2, 3, 4, 5].map((n) => (
@@ -309,21 +304,21 @@ function RsvpSection({ site }: { site: Site }) {
   )
 }
 
-function WishesSection({ site }: { site: Site }) {
-  const [newWish, setNewWish] = useState({ authorName: '', message: '' })
+function WishesSection({ site }: { site: MicrositeWithDetails }) {
+  const [newWish, setNewWish] = useState({ name: '', message: '' })
 
   const { data: wishes, refetch } = useQuery({
-    queryKey: ['wishes', site._id],
+    queryKey: ['wishes', site.slug],
     queryFn: async () => {
-      const response = await wishApi.getApproved(site._id)
-      return response.data
+      // Get wishes from the public microsite data
+      return (site as any).wishes || []
     },
   })
 
   const submitMutation = useMutation({
-    mutationFn: () => wishApi.submit(site._id, newWish.authorName, newWish.message),
+    mutationFn: () => micrositeApi.submitWish(site.slug, newWish.name, newWish.message),
     onSuccess: () => {
-      setNewWish({ authorName: '', message: '' })
+      setNewWish({ name: '', message: '' })
       refetch()
       Swal.fire({
         icon: 'success',
@@ -346,7 +341,7 @@ function WishesSection({ site }: { site: Site }) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newWish.authorName.trim() || !newWish.message.trim()) return
+    if (!newWish.name.trim() || !newWish.message.trim()) return
     submitMutation.mutate()
   }
 
@@ -368,8 +363,8 @@ function WishesSection({ site }: { site: Site }) {
               <input
                 type="text"
                 required
-                value={newWish.authorName}
-                onChange={(e) => setNewWish({ ...newWish, authorName: e.target.value })}
+                value={newWish.name}
+                onChange={(e) => setNewWish({ ...newWish, name: e.target.value })}
                 className="input-field"
                 placeholder="Enter your name"
               />
@@ -411,7 +406,7 @@ function WishesSection({ site }: { site: Site }) {
                   </div>
                 )}
                 <p className="text-gray-700 mb-3">{wish.message}</p>
-                <p className="text-sm text-gray-500">— {wish.authorName}</p>
+                <p className="text-sm text-gray-500">— {wish.authorName || wish.name}</p>
               </div>
             ))}
           </div>
