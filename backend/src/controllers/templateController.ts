@@ -14,7 +14,7 @@ const generateSlug = (name: string): string => {
 // Create a new template (admin only)
 export const createTemplate = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { name, description, category, thumbnail, isPremium } = req.body;
+    const { name, description, category, thumbnail, isPremium, sections, colorSchemes, fontPairs, previewDataSets } = req.body;
 
     const slug = generateSlug(name);
 
@@ -33,20 +33,87 @@ export const createTemplate = async (req: AuthRequest, res: Response): Promise<v
 
     await template.save();
 
-    // Create initial version
+    // Create initial version with color schemes and font pairs
+    console.log('fontPairs received:', JSON.stringify(fontPairs, null, 2));
+    const mappedFontPairs = (fontPairs || []).map((fp: Record<string, unknown>) => ({
+      id: fp.id,
+      name: fp.name,
+      heading: fp.heading || fp.headingFont,
+      body: fp.body || fp.bodyFont,
+      headingWeight: fp.headingWeight || 700,
+      bodyWeight: fp.bodyWeight || 400
+    }));
+    console.log('mappedFontPairs:', JSON.stringify(mappedFontPairs, null, 2));
+    
     const version = new TemplateVersion({
       templateId: template._id,
       version: 1,
-      colorSchemes: [],
-      fontPairs: [],
-      defaultColorScheme: '',
-      defaultFontPair: '',
+      colorSchemes: (colorSchemes || []).map((cs: Record<string, string>) => ({
+        id: cs.id,
+        name: cs.name,
+        primary: cs.primary,
+        secondary: cs.secondary,
+        background: cs.background || '#FFFFFF',
+        surface: cs.surface || '#FAFAFA',
+        text: cs.text || '#212121',
+        textMuted: cs.textMuted || '#757575',
+        accent: cs.accent
+      })),
+      fontPairs: (fontPairs || []).map((fp: Record<string, unknown>) => ({
+        id: fp.id,
+        name: fp.name,
+        heading: fp.heading || fp.headingFont,
+        body: fp.body || fp.bodyFont,
+        headingWeight: fp.headingWeight || 700,
+        bodyWeight: fp.bodyWeight || 400
+      })),
+      defaultColorScheme: colorSchemes?.[0]?.id || '',
+      defaultFontPair: fontPairs?.[0]?.id || '',
       changelog: 'Initial version'
     });
 
     await version.save();
 
-    res.status(201).json({ template, version });
+    // Create sections if provided
+    const createdSections = [];
+    if (sections && Array.isArray(sections)) {
+      for (let i = 0; i < sections.length; i++) {
+        const sectionData = sections[i];
+        
+        // Get sample values from previewDataSets if available
+        let sampleValues: Record<string, unknown> = {};
+        if (previewDataSets && previewDataSets.length > 0 && previewDataSets[0].data) {
+          sampleValues = previewDataSets[0].data[sectionData.id] || {};
+        }
+
+        const newSection = new TemplateSection({
+          versionId: version._id,
+          sectionId: 'sec_' + uuidv4().slice(0, 8),
+          type: sectionData.type,
+          name: sectionData.name,
+          description: sectionData.description || '',
+          order: i,
+          isRequired: sectionData.isRequired || false,
+          canDisable: sectionData.canDisable !== false,
+          fields: (sectionData.fields || []).map((field: Record<string, unknown>) => ({
+            fieldId: 'fld_' + uuidv4().slice(0, 8),
+            key: field.key || field.id || field.name,
+            label: field.label || field.name || 'Field',
+            type: field.type || 'text',
+            placeholder: field.placeholder || '',
+            defaultValue: field.defaultValue,
+            options: field.options,
+            validation: field.validation ? field.validation : (field.required ? { required: true } : undefined)
+          })),
+          sampleValues
+        });
+
+        await newSection.save();
+        createdSections.push(newSection);
+      }
+    }
+
+    res.status(201).json({ template, version, sections: createdSections });
   } catch (error) {
     const err = error as Error;
     res.status(400).json({ error: err.message });
