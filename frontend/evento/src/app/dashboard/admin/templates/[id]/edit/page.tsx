@@ -79,7 +79,8 @@ export default function EditTemplatePage() {
     queryKey: ['template', templateId],
     queryFn: async () => {
       const response = await templateApi.getOne(templateId)
-      return response.data as Template
+      // API returns { template: {...}, version: null, sections: [] }
+      return (response.data.template || response.data) as Template
     },
   })
 
@@ -140,7 +141,7 @@ export default function EditTemplatePage() {
   })
 
   const handleSave = () => {
-    if (!template.name.trim()) {
+    if (!template.name?.trim()) {
       Swal.fire({ icon: 'warning', title: 'Name required', text: 'Please enter a template name' })
       return
     }
