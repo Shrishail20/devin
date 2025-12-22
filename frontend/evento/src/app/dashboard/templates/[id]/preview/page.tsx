@@ -18,7 +18,10 @@ import {
   Phone,
   Mail,
   Globe,
-  Star
+  Star,
+  X,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 import { templateApi } from '@/lib/api'
 import { Template, SectionDefinition } from '@/types'
@@ -227,6 +230,9 @@ function PreviewSection({
   colorScheme: { primary: string; secondary: string; accent: string; background: string; text: string }
   deviceMode: DeviceMode
 }) {
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState(0)
+  
   const sampleValues = section.sampleValues || {}
   
   const getValue = (fieldName: string, defaultValue: string = '') => {
@@ -476,6 +482,23 @@ function PreviewSection({
       const galleryTitle = getValue('title', 'Our Moments Together')
       const galleryImages = getArray('images')
       
+      const openLightbox = (index: number) => {
+        setLightboxIndex(index)
+        setLightboxOpen(true)
+      }
+      
+      const closeLightbox = () => {
+        setLightboxOpen(false)
+      }
+      
+      const goToPrevious = () => {
+        setLightboxIndex((prev) => (prev === 0 ? galleryImages.length - 1 : prev - 1))
+      }
+      
+      const goToNext = () => {
+        setLightboxIndex((prev) => (prev === galleryImages.length - 1 ? 0 : prev + 1))
+      }
+      
       return (
         <div className={`${isMobile ? 'p-4' : 'p-12'}`} style={{ backgroundColor: `${colorScheme.accent}15` }}>
           <h2 
@@ -490,6 +513,7 @@ function PreviewSection({
                 <div 
                   key={index} 
                   className={`aspect-square overflow-hidden shadow-md hover:shadow-xl transition-shadow cursor-pointer group ${isMobile ? 'rounded-lg' : 'rounded-xl'}`}
+                  onClick={() => openLightbox(index)}
                 >
                   <img 
                     src={imageUrl} 
@@ -508,6 +532,55 @@ function PreviewSection({
               ))
             )}
           </div>
+          
+          {/* Lightbox Overlay */}
+          {lightboxOpen && galleryImages.length > 0 && (
+            <div 
+              className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+              onClick={closeLightbox}
+            >
+              {/* Close button */}
+              <button 
+                className="absolute top-4 right-4 p-2 text-white/80 hover:text-white transition-colors z-10"
+                onClick={closeLightbox}
+              >
+                <X className="w-8 h-8" />
+              </button>
+              
+              {/* Previous button */}
+              {galleryImages.length > 1 && (
+                <button 
+                  className="absolute left-4 p-2 text-white/80 hover:text-white transition-colors z-10"
+                  onClick={(e) => { e.stopPropagation(); goToPrevious(); }}
+                >
+                  <ChevronLeft className="w-10 h-10" />
+                </button>
+              )}
+              
+              {/* Image */}
+              <img 
+                src={galleryImages[lightboxIndex]} 
+                alt={`Gallery image ${lightboxIndex + 1}`}
+                className="max-h-[85vh] max-w-[92vw] object-contain"
+                onClick={(e) => e.stopPropagation()}
+              />
+              
+              {/* Next button */}
+              {galleryImages.length > 1 && (
+                <button 
+                  className="absolute right-4 p-2 text-white/80 hover:text-white transition-colors z-10"
+                  onClick={(e) => { e.stopPropagation(); goToNext(); }}
+                >
+                  <ChevronRight className="w-10 h-10" />
+                </button>
+              )}
+              
+              {/* Image counter */}
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/80 text-sm">
+                {lightboxIndex + 1} / {galleryImages.length}
+              </div>
+            </div>
+          )}
         </div>
       )
 
@@ -710,29 +783,30 @@ function PreviewSection({
       
       return (
         <div 
-          className={`${isMobile ? 'p-6' : 'p-12'} text-center`}
+          className={`${isMobile ? 'p-4' : 'p-12'} text-center`}
           style={{ background: `linear-gradient(135deg, ${colorScheme.primary}15, ${colorScheme.secondary}15)` }}
         >
-          <p className={`text-gray-600 italic ${isMobile ? 'mb-6 text-sm' : 'mb-8 text-base'}`}>{countdownMessage}</p>
-          {/* Mobile: 2x2 grid, Desktop: 4 in a row */}
-          <div className={`${isMobile ? 'grid grid-cols-2 gap-4 max-w-[280px] mx-auto' : 'flex justify-center gap-6'}`}>
+          <p className={`text-gray-600 italic ${isMobile ? 'mb-4 text-sm' : 'mb-8 text-base'}`}>{countdownMessage}</p>
+          {/* Professional 4-in-a-row layout for both mobile and desktop */}
+          <div className={`flex justify-center ${isMobile ? 'gap-2' : 'gap-4'}`}>
             {[
               { value: days, label: 'Days' },
-              { value: hours, label: 'Hours' },
-              { value: minutes, label: 'Minutes' },
-              { value: seconds, label: 'Seconds' }
+              { value: hours, label: 'Hrs' },
+              { value: minutes, label: 'Min' },
+              { value: seconds, label: 'Sec' }
             ].map((item) => (
-              <div key={item.label} className="text-center">
+              <div key={item.label} className="text-center flex-1" style={{ maxWidth: isMobile ? '72px' : '96px' }}>
                 <div 
-                  className={`${isMobile ? 'w-full aspect-square max-w-[120px] mx-auto text-2xl' : 'w-24 h-24 text-3xl'} rounded-2xl flex items-center justify-center font-bold text-white shadow-lg`}
+                  className={`${isMobile ? 'py-3 px-2 text-xl' : 'py-4 px-3 text-3xl'} rounded-xl flex items-center justify-center font-bold text-white shadow-lg`}
                   style={{ 
                     background: `linear-gradient(135deg, ${colorScheme.primary}, ${colorScheme.secondary})`,
-                    boxShadow: `0 4px 15px ${colorScheme.primary}40`
+                    boxShadow: `0 4px 15px ${colorScheme.primary}40`,
+                    fontVariantNumeric: 'tabular-nums'
                   }}
                 >
                   {String(item.value).padStart(2, '0')}
                 </div>
-                <p className={`mt-2 font-medium ${isMobile ? 'text-sm' : 'text-sm'}`} style={{ color: colorScheme.primary }}>{item.label}</p>
+                <p className={`mt-1.5 font-medium uppercase tracking-wide ${isMobile ? 'text-[10px]' : 'text-xs'}`} style={{ color: colorScheme.primary }}>{item.label}</p>
               </div>
             ))}
           </div>
