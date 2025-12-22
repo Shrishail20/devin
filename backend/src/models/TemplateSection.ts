@@ -24,6 +24,12 @@ export interface IFieldDefinition {
 // Section types
 export type SectionType = 'hero' | 'event_details' | 'countdown' | 'gallery' | 'story' | 'timeline' | 'venue' | 'rsvp' | 'wishes' | 'gift_registry' | 'contact' | 'footer' | 'custom';
 
+// Sample data set for a specific profile
+export interface ISampleDataSet {
+  profileId: string;
+  values: Record<string, unknown>;
+}
+
 // Template Section - Defines sections included in a template version
 export interface ITemplateSection extends Document {
   versionId: mongoose.Types.ObjectId;
@@ -36,6 +42,7 @@ export interface ITemplateSection extends Document {
   canDisable: boolean;
   fields: IFieldDefinition[];
   sampleValues: Record<string, unknown>;
+  sampleDataSets: ISampleDataSet[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -67,6 +74,11 @@ const FieldDefinitionSchema = new Schema<IFieldDefinition>({
   fields: { type: [Schema.Types.Mixed] } // For repeater type (nested fields)
 }, { _id: false });
 
+const SampleDataSetSchema = new Schema<ISampleDataSet>({
+  profileId: { type: String, required: true },
+  values: { type: Schema.Types.Mixed, default: {} }
+}, { _id: false });
+
 const TemplateSectionSchema = new Schema<ITemplateSection>({
   versionId: { type: Schema.Types.ObjectId, ref: 'TemplateVersion', required: true },
   sectionId: { type: String, required: true },
@@ -81,7 +93,8 @@ const TemplateSectionSchema = new Schema<ITemplateSection>({
   isRequired: { type: Boolean, default: false },
   canDisable: { type: Boolean, default: true },
   fields: [FieldDefinitionSchema],
-  sampleValues: { type: Schema.Types.Mixed, default: {} }
+  sampleValues: { type: Schema.Types.Mixed, default: {} },
+  sampleDataSets: [SampleDataSetSchema]
 }, {
   timestamps: true
 });

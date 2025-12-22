@@ -23,14 +23,23 @@ export interface IFontPair {
   bodyWeight: number;
 }
 
+// Sample profile option (for multiple preview data sets)
+export interface ISampleProfile {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 // Template Version - Allows template updates without breaking existing user sites
 export interface ITemplateVersion extends Document {
   templateId: mongoose.Types.ObjectId;
   version: number;
   colorSchemes: IColorScheme[];
   fontPairs: IFontPair[];
+  sampleProfiles: ISampleProfile[];
   defaultColorScheme: string;
   defaultFontPair: string;
+  defaultSampleProfile: string;
   changelog: string;
   createdAt: Date;
 }
@@ -56,13 +65,21 @@ const FontPairSchema = new Schema<IFontPair>({
   bodyWeight: { type: Number, default: 400 }
 }, { _id: false });
 
+const SampleProfileSchema = new Schema<ISampleProfile>({
+  id: { type: String, required: true },
+  name: { type: String, required: true },
+  description: { type: String, default: '' }
+}, { _id: false });
+
 const TemplateVersionSchema = new Schema<ITemplateVersion>({
   templateId: { type: Schema.Types.ObjectId, ref: 'Template', required: true },
   version: { type: Number, required: true },
   colorSchemes: [ColorSchemeSchema],
   fontPairs: [FontPairSchema],
+  sampleProfiles: [SampleProfileSchema],
   defaultColorScheme: { type: String, default: '' },
   defaultFontPair: { type: String, default: '' },
+  defaultSampleProfile: { type: String, default: 'default' },
   changelog: { type: String, default: '' }
 }, {
   timestamps: { createdAt: true, updatedAt: false }

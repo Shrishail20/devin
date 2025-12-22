@@ -49,6 +49,13 @@ export interface FontPair {
   bodyWeight?: number
 }
 
+// Sample profile option (for multiple preview data sets)
+export interface SampleProfile {
+  id: string
+  name: string
+  description?: string
+}
+
 // Template Version
 export interface TemplateVersion {
   _id: string
@@ -56,10 +63,18 @@ export interface TemplateVersion {
   version: number
   colorSchemes: ColorScheme[]
   fontPairs: FontPair[]
+  sampleProfiles: SampleProfile[]
   defaultColorScheme: string
   defaultFontPair: string
+  defaultSampleProfile: string
   changelog: string
   createdAt: string
+}
+
+// Sample data set for a specific profile
+export interface SampleDataSet {
+  profileId: string
+  values: Record<string, unknown>
 }
 
 // Template Section (separate collection)
@@ -75,6 +90,7 @@ export interface TemplateSection {
   canDisable: boolean
   fields: FieldDefinition[]
   sampleValues: Record<string, unknown>
+  sampleDataSets?: SampleDataSet[]
   createdAt: string
   updatedAt: string
 }

@@ -21,12 +21,19 @@ import {
   Star,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Maximize2,
+  Minimize2
 } from 'lucide-react'
 import { templateApi } from '@/lib/api'
-import { Template, SectionDefinition } from '@/types'
+import { Template, SectionDefinition, SampleProfile, TemplateSection } from '@/types'
 
 type DeviceMode = 'desktop' | 'tablet' | 'mobile'
+
+interface TemplateWithProfiles extends Template {
+  sampleProfiles?: SampleProfile[]
+  sections?: TemplateSection[]
+}
 
 export default function TemplatePreviewPage() {
   const params = useParams()
@@ -35,6 +42,8 @@ export default function TemplatePreviewPage() {
   const [deviceMode, setDeviceMode] = useState<DeviceMode>('desktop')
   const [activePreviewSet, setActivePreviewSet] = useState(0)
   const [activeColorScheme, setActiveColorScheme] = useState(0)
+  const [activeSampleProfile, setActiveSampleProfile] = useState<string>('default')
+  const [isFullPage, setIsFullPage] = useState(false)
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['template-preview', templateId],
@@ -44,13 +53,14 @@ export default function TemplatePreviewPage() {
       const template = response.data.template || response.data
       const version = response.data.version || {}
       const sections = response.data.sections || []
-      // Merge version data (colorSchemes, fontPairs) and sections into template object for rendering
+      // Merge version data (colorSchemes, fontPairs, sampleProfiles) and sections into template object for rendering
       return { 
         ...template, 
         sections,
         colorSchemes: version.colorSchemes || template.colorSchemes || [],
-        fontPairs: version.fontPairs || template.fontPairs || []
-      } as Template
+        fontPairs: version.fontPairs || template.fontPairs || [],
+        sampleProfiles: version.sampleProfiles || []
+      } as TemplateWithProfiles
     },
   })
 
@@ -128,9 +138,49 @@ export default function TemplatePreviewPage() {
                 <Smartphone className="w-5 h-5" />
               </button>
             </div>
+            <button
+              onClick={() => setIsFullPage(!isFullPage)}
+              className={`p-2 rounded-lg transition-colors ${isFullPage ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 hover:bg-gray-200'}`}
+              title={isFullPage ? 'Exit Full Page' : 'Full Page Preview'}
+            >
+              {isFullPage ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+            </button>
           </div>
         </div>
 
+        {/* Sample Profile Selector */}
+        {template.sampleProfiles && template.sampleProfiles.length > 0 && (
+          <div className="mt-4">
+            <p className="text-sm text-gray-500 mb-2">Preview Data:</p>
+            <div className="flex gap-2 overflow-x-auto">
+              <button
+                onClick={() => setActiveSampleProfile('default')}
+                className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
+                  activeSampleProfile === 'default'
+                    ? 'bg-purple-100 text-purple-700 ring-2 ring-purple-300'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Default
+              </button>
+              {template.sampleProfiles.map((profile) => (
+                <button
+                  key={profile.id}
+                  onClick={() => setActiveSampleProfile(profile.id)}
+                  className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
+                    activeSampleProfile === profile.id
+                      ? 'bg-purple-100 text-purple-700 ring-2 ring-purple-300'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {profile.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Legacy preview data sets (for backward compatibility) */}
         {template.previewDataSets && template.previewDataSets.length > 1 && (
           <div className="flex gap-2 mt-4 overflow-x-auto">
             {template.previewDataSets.map((preset, index) => (
@@ -194,29 +244,64 @@ export default function TemplatePreviewPage() {
         )}
       </div>
 
-      <div className="mt-6 flex justify-center">
-        <div 
-          className={`w-full ${getDeviceWidth()} bg-white rounded-2xl shadow-xl overflow-hidden transition-all duration-300`}
-          style={{ backgroundColor: colorScheme.background }}
-        >
-          {template.sections?.length > 0 ? (
-            template.sections
-              .sort((a, b) => a.order - b.order)
-              .map((section) => (
-                <PreviewSection
-                  key={section.id || section.sectionId}
-                  section={section}
-                  colorScheme={colorScheme}
-                  deviceMode={deviceMode}
-                />
-              ))
-          ) : (
-            <div className="p-12 text-center text-gray-500">
-              <p>No sections in this template</p>
-            </div>
-          )}
+      {/* Full Page Preview Mode */}
+      {isFullPage ? (
+        <div className="fixed inset-0 z-50 bg-white overflow-auto">
+          <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+            <h2 className="font-semibold text-gray-900">Full Page Preview - {template.name}</h2>
+            <button
+              onClick={() => setIsFullPage(false)}
+              className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div style={{ backgroundColor: colorScheme.background }}>
+            {template.sections?.length > 0 ? (
+              template.sections
+                .sort((a, b) => a.order - b.order)
+                .map((section) => (
+                  <PreviewSection
+                    key={section.id || section.sectionId}
+                    section={section}
+                    colorScheme={colorScheme}
+                    deviceMode="desktop"
+                    activeSampleProfile={activeSampleProfile}
+                  />
+                ))
+            ) : (
+              <div className="p-12 text-center text-gray-500">
+                <p>No sections in this template</p>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="mt-6 flex justify-center">
+          <div 
+            className={`w-full ${getDeviceWidth()} bg-white rounded-2xl shadow-xl overflow-hidden transition-all duration-300`}
+            style={{ backgroundColor: colorScheme.background }}
+          >
+            {template.sections?.length > 0 ? (
+              template.sections
+                .sort((a, b) => a.order - b.order)
+                .map((section) => (
+                  <PreviewSection
+                    key={section.id || section.sectionId}
+                    section={section}
+                    colorScheme={colorScheme}
+                    deviceMode={deviceMode}
+                    activeSampleProfile={activeSampleProfile}
+                  />
+                ))
+            ) : (
+              <div className="p-12 text-center text-gray-500">
+                <p>No sections in this template</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -224,16 +309,30 @@ export default function TemplatePreviewPage() {
 function PreviewSection({
   section,
   colorScheme,
-  deviceMode
+  deviceMode,
+  activeSampleProfile = 'default'
 }: {
-  section: SectionDefinition & { sampleValues?: Record<string, unknown> }
+  section: SectionDefinition & { sampleValues?: Record<string, unknown>; sampleDataSets?: Array<{ profileId: string; values: Record<string, unknown> }> }
   colorScheme: { primary: string; secondary: string; accent: string; background: string; text: string }
   deviceMode: DeviceMode
+  activeSampleProfile?: string
 }) {
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState(0)
   
-  const sampleValues = section.sampleValues || {}
+  // Get sample values based on active profile
+  // If a profile is selected and has data for this section, use it; otherwise fall back to default sampleValues
+  const getEffectiveSampleValues = () => {
+    if (activeSampleProfile !== 'default' && section.sampleDataSets) {
+      const profileData = section.sampleDataSets.find(ds => ds.profileId === activeSampleProfile)
+      if (profileData) {
+        return profileData.values
+      }
+    }
+    return section.sampleValues || {}
+  }
+  
+  const sampleValues = getEffectiveSampleValues()
   
   const getValue = (fieldName: string, defaultValue: string = '') => {
     return (sampleValues[fieldName] as string) || defaultValue
