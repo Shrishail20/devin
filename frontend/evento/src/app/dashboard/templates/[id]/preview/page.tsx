@@ -39,9 +39,15 @@ export default function TemplatePreviewPage() {
       const response = await templateApi.getOne(templateId)
       // API returns { template: {...}, version: {...}, sections: [...] }
       const template = response.data.template || response.data
+      const version = response.data.version || {}
       const sections = response.data.sections || []
-      // Merge sections into template object for rendering
-      return { ...template, sections } as Template
+      // Merge version data (colorSchemes, fontPairs) and sections into template object for rendering
+      return { 
+        ...template, 
+        sections,
+        colorSchemes: version.colorSchemes || template.colorSchemes || [],
+        fontPairs: version.fontPairs || template.fontPairs || []
+      } as Template
     },
   })
 
