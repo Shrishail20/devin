@@ -533,51 +533,56 @@ function PreviewSection({
             )}
           </div>
           
-          {/* Lightbox Overlay */}
+          {/* Lightbox Popup */}
           {lightboxOpen && galleryImages.length > 0 && (
             <div 
-              className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+              className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
               onClick={closeLightbox}
             >
-              {/* Close button */}
-              <button 
-                className="absolute top-4 right-4 p-2 text-white/80 hover:text-white transition-colors z-10"
-                onClick={closeLightbox}
-              >
-                <X className="w-8 h-8" />
-              </button>
-              
-              {/* Previous button */}
-              {galleryImages.length > 1 && (
-                <button 
-                  className="absolute left-4 p-2 text-white/80 hover:text-white transition-colors z-10"
-                  onClick={(e) => { e.stopPropagation(); goToPrevious(); }}
-                >
-                  <ChevronLeft className="w-10 h-10" />
-                </button>
-              )}
-              
-              {/* Image */}
-              <img 
-                src={galleryImages[lightboxIndex]} 
-                alt={`Gallery image ${lightboxIndex + 1}`}
-                className="max-h-[85vh] max-w-[92vw] object-contain"
+              {/* Popup Card */}
+              <div 
+                className="bg-white rounded-2xl shadow-2xl overflow-hidden w-full max-w-[480px] max-h-[70vh] flex flex-col"
                 onClick={(e) => e.stopPropagation()}
-              />
-              
-              {/* Next button */}
-              {galleryImages.length > 1 && (
-                <button 
-                  className="absolute right-4 p-2 text-white/80 hover:text-white transition-colors z-10"
-                  onClick={(e) => { e.stopPropagation(); goToNext(); }}
-                >
-                  <ChevronRight className="w-10 h-10" />
-                </button>
-              )}
-              
-              {/* Image counter */}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/80 text-sm">
-                {lightboxIndex + 1} / {galleryImages.length}
+              >
+                {/* Header with close button */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                  <span className="text-sm font-medium text-gray-600">
+                    {lightboxIndex + 1} / {galleryImages.length}
+                  </span>
+                  <button 
+                    className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                    onClick={closeLightbox}
+                  >
+                    <X className="w-5 h-5 text-gray-500" />
+                  </button>
+                </div>
+                
+                {/* Image */}
+                <div className="flex-1 flex items-center justify-center bg-gray-50 overflow-hidden">
+                  <img 
+                    src={galleryImages[lightboxIndex]} 
+                    alt={`Gallery image ${lightboxIndex + 1}`}
+                    className="max-h-[50vh] max-w-full object-contain"
+                  />
+                </div>
+                
+                {/* Footer with navigation */}
+                {galleryImages.length > 1 && (
+                  <div className="flex items-center justify-center gap-4 px-4 py-3 border-t border-gray-100">
+                    <button 
+                      className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                      onClick={goToPrevious}
+                    >
+                      <ChevronLeft className="w-6 h-6 text-gray-600" />
+                    </button>
+                    <button 
+                      className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                      onClick={goToNext}
+                    >
+                      <ChevronRight className="w-6 h-6 text-gray-600" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
