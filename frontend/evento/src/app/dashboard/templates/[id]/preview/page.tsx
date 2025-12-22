@@ -258,7 +258,7 @@ function PreviewSection({
       
       return (
         <div 
-          className="relative min-h-[500px] flex items-center justify-center text-center p-8"
+          className={`relative ${isMobile ? 'min-h-[400px] p-6' : 'min-h-[500px] p-8'} flex items-center justify-center text-center`}
           style={{ 
             backgroundImage: backgroundImage 
               ? `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url(${backgroundImage})` 
@@ -328,39 +328,39 @@ function PreviewSection({
       
       if (isBirthdayEvent) {
         return (
-          <div className={`${isMobile ? 'p-6' : 'p-12'}`} style={{ backgroundColor: colorScheme.background }}>
+          <div className={`${isMobile ? 'p-4' : 'p-12'}`} style={{ backgroundColor: colorScheme.background }}>
             <h2 
-              className={`font-serif font-bold mb-8 text-center ${isMobile ? 'text-2xl' : 'text-3xl'}`}
+              className={`font-serif font-bold text-center ${isMobile ? 'text-xl mb-4' : 'text-3xl mb-8'}`}
               style={{ color: colorScheme.primary }}
             >
               Party Details
             </h2>
-            <div className={`max-w-2xl mx-auto ${isMobile ? 'space-y-6' : 'space-y-8'}`}>
-              <div className="flex items-start gap-4 p-4 rounded-xl" style={{ backgroundColor: `${colorScheme.primary}10` }}>
-                <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: colorScheme.primary }}>
-                  <Clock className="w-6 h-6 text-white" />
+            <div className={`max-w-2xl mx-auto ${isMobile ? 'space-y-3' : 'space-y-8'}`}>
+              <div className={`flex items-start gap-3 ${isMobile ? 'p-3' : 'p-4'} rounded-xl`} style={{ backgroundColor: `${colorScheme.primary}10` }}>
+                <div className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} rounded-full flex items-center justify-center flex-shrink-0`} style={{ backgroundColor: colorScheme.primary }}>
+                  <Clock className={`${isMobile ? 'w-5 h-5' : 'w-6 h-6'} text-white`} />
                 </div>
-                <div>
-                  <p className="text-sm uppercase tracking-wider" style={{ color: colorScheme.primary }}>Party Time</p>
-                  <p className="font-semibold text-lg" style={{ color: colorScheme.text }}>{partyTime}</p>
-                  <p className="text-gray-600">{partyVenue}</p>
+                <div className="min-w-0">
+                  <p className={`uppercase tracking-wider ${isMobile ? 'text-xs' : 'text-sm'}`} style={{ color: colorScheme.primary }}>Party Time</p>
+                  <p className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'}`} style={{ color: colorScheme.text }}>{partyTime}</p>
+                  <p className={`text-gray-600 ${isMobile ? 'text-sm' : 'text-base'}`}>{partyVenue}</p>
                 </div>
               </div>
               {partyTheme && (
-                <div className="flex items-start gap-4 p-4 rounded-xl" style={{ backgroundColor: `${colorScheme.accent}15` }}>
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: colorScheme.accent }}>
-                    <Star className="w-6 h-6 text-white" />
+                <div className={`flex items-start gap-3 ${isMobile ? 'p-3' : 'p-4'} rounded-xl`} style={{ backgroundColor: `${colorScheme.accent}15` }}>
+                  <div className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} rounded-full flex items-center justify-center flex-shrink-0`} style={{ backgroundColor: colorScheme.accent }}>
+                    <Star className={`${isMobile ? 'w-5 h-5' : 'w-6 h-6'} text-white`} />
                   </div>
-                  <div>
-                    <p className="text-sm uppercase tracking-wider" style={{ color: colorScheme.accent }}>Party Theme</p>
-                    <p className="font-semibold text-lg" style={{ color: colorScheme.text }}>{partyTheme}</p>
+                  <div className="min-w-0">
+                    <p className={`uppercase tracking-wider ${isMobile ? 'text-xs' : 'text-sm'}`} style={{ color: colorScheme.accent }}>Party Theme</p>
+                    <p className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'}`} style={{ color: colorScheme.text }}>{partyTheme}</p>
                   </div>
                 </div>
               )}
               {dressCode && (
-                <div className="text-center pt-4 border-t border-gray-200">
-                  <p className="text-sm text-gray-500">Dress Code</p>
-                  <p className="font-medium" style={{ color: colorScheme.primary }}>{dressCode}</p>
+                <div className={`text-center ${isMobile ? 'pt-3' : 'pt-4'} border-t border-gray-200`}>
+                  <p className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>Dress Code</p>
+                  <p className={`font-medium ${isMobile ? 'text-sm' : 'text-base'}`} style={{ color: colorScheme.primary }}>{dressCode}</p>
                 </div>
               )}
             </div>
@@ -415,20 +415,20 @@ function PreviewSection({
       const directions = getValue('directions', '')
       
       return (
-        <div className={`${isMobile ? 'p-6' : 'p-12'}`}>
+        <div className={`${isMobile ? 'p-4' : 'p-12'}`}>
           <h2 
-            className={`font-serif font-bold mb-8 text-center ${isMobile ? 'text-2xl' : 'text-3xl'}`}
+            className={`font-serif font-bold text-center ${isMobile ? 'text-xl mb-4' : 'text-3xl mb-8'}`}
             style={{ color: colorScheme.primary }}
           >
             The Venue
           </h2>
           <div className="max-w-4xl mx-auto">
             {venueImage && (
-              <div className="relative rounded-2xl overflow-hidden mb-6 shadow-lg">
+              <div className={`relative overflow-hidden mb-4 shadow-lg ${isMobile ? 'rounded-xl' : 'rounded-2xl'}`}>
                 <img 
                   src={venueImage} 
                   alt={venueName}
-                  className="w-full h-64 object-cover"
+                  className={`w-full object-cover ${isMobile ? 'h-48' : 'h-64'}`}
                 />
                 <div 
                   className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"
@@ -477,19 +477,19 @@ function PreviewSection({
       const galleryImages = getArray('images')
       
       return (
-        <div className={`${isMobile ? 'p-6' : 'p-12'}`} style={{ backgroundColor: `${colorScheme.accent}15` }}>
+        <div className={`${isMobile ? 'p-4' : 'p-12'}`} style={{ backgroundColor: `${colorScheme.accent}15` }}>
           <h2 
-            className={`font-serif font-bold mb-8 text-center ${isMobile ? 'text-2xl' : 'text-3xl'}`}
+            className={`font-serif font-bold text-center ${isMobile ? 'text-xl mb-4' : 'text-3xl mb-8'}`}
             style={{ color: colorScheme.primary }}
           >
             {galleryTitle}
           </h2>
-          <div className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-3'} gap-4 max-w-4xl mx-auto`}>
+          <div className={`grid ${isMobile ? 'grid-cols-2 gap-2' : 'grid-cols-3 gap-4'} max-w-4xl mx-auto`}>
             {galleryImages.length > 0 ? (
               galleryImages.map((imageUrl, index) => (
                 <div 
                   key={index} 
-                  className="aspect-square rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow cursor-pointer group"
+                  className={`aspect-square overflow-hidden shadow-md hover:shadow-xl transition-shadow cursor-pointer group ${isMobile ? 'rounded-lg' : 'rounded-xl'}`}
                 >
                   <img 
                     src={imageUrl} 
@@ -502,7 +502,7 @@ function PreviewSection({
               [1, 2, 3, 4, 5, 6].map((i) => (
                 <div 
                   key={i} 
-                  className="aspect-square rounded-xl"
+                  className={`aspect-square ${isMobile ? 'rounded-lg' : 'rounded-xl'}`}
                   style={{ background: `linear-gradient(135deg, ${colorScheme.primary}30, ${colorScheme.secondary}30)` }}
                 />
               ))
@@ -556,37 +556,37 @@ function PreviewSection({
       
       return (
         <div 
-          className={`${isMobile ? 'p-6' : 'p-12'}`}
+          className={`${isMobile ? 'p-4' : 'p-12'}`}
           style={{ backgroundColor: `${colorScheme.primary}08` }}
         >
           <h2 
-            className={`font-serif font-bold mb-4 text-center ${isMobile ? 'text-2xl' : 'text-3xl'}`}
+            className={`font-serif font-bold text-center ${isMobile ? 'text-xl mb-2' : 'text-3xl mb-4'}`}
             style={{ color: colorScheme.primary }}
           >
             {rsvpTitle}
           </h2>
-          <p className="text-center text-gray-600 mb-8 max-w-lg mx-auto">{rsvpMessage}</p>
-          <div className="max-w-md mx-auto space-y-4">
+          <p className={`text-center text-gray-600 max-w-lg mx-auto ${isMobile ? 'text-sm mb-4' : 'text-base mb-8'}`}>{rsvpMessage}</p>
+          <div className={`max-w-md mx-auto ${isMobile ? 'space-y-3' : 'space-y-4'}`}>
             <input 
               type="text" 
               placeholder="Your Full Name" 
-              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-purple-400 transition-colors"
+              className={`w-full border-2 border-gray-200 focus:outline-none focus:border-purple-400 transition-colors ${isMobile ? 'px-3 py-2.5 rounded-lg text-sm' : 'px-4 py-3 rounded-xl'}`}
               disabled
             />
             <input 
               type="email" 
               placeholder="Email Address" 
-              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-purple-400 transition-colors"
+              className={`w-full border-2 border-gray-200 focus:outline-none focus:border-purple-400 transition-colors ${isMobile ? 'px-3 py-2.5 rounded-lg text-sm' : 'px-4 py-3 rounded-xl'}`}
               disabled
             />
             <input 
               type="number" 
               placeholder="Number of Guests" 
-              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-purple-400 transition-colors"
+              className={`w-full border-2 border-gray-200 focus:outline-none focus:border-purple-400 transition-colors ${isMobile ? 'px-3 py-2.5 rounded-lg text-sm' : 'px-4 py-3 rounded-xl'}`}
               disabled
             />
             <select 
-              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-purple-400 transition-colors"
+              className={`w-full border-2 border-gray-200 focus:outline-none focus:border-purple-400 transition-colors ${isMobile ? 'px-3 py-2.5 rounded-lg text-sm' : 'px-4 py-3 rounded-xl'}`}
               disabled
             >
               <option>Will you attend?</option>
@@ -596,11 +596,11 @@ function PreviewSection({
             <textarea 
               placeholder="Dietary restrictions or special requests..." 
               rows={2}
-              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-purple-400 transition-colors"
+              className={`w-full border-2 border-gray-200 focus:outline-none focus:border-purple-400 transition-colors ${isMobile ? 'px-3 py-2.5 rounded-lg text-sm' : 'px-4 py-3 rounded-xl'}`}
               disabled
             />
             <button 
-              className="w-full py-4 rounded-xl text-white font-semibold text-lg shadow-lg hover:shadow-xl transition-all"
+              className={`w-full text-white font-semibold shadow-lg hover:shadow-xl transition-all ${isMobile ? 'py-3 rounded-lg text-base' : 'py-4 rounded-xl text-lg'}`}
               style={{ backgroundColor: colorScheme.primary }}
               disabled
             >
@@ -608,7 +608,7 @@ function PreviewSection({
             </button>
           </div>
           {rsvpDeadline && (
-            <p className="mt-6 text-center text-sm text-gray-500">
+            <p className={`text-center text-gray-500 ${isMobile ? 'mt-4 text-xs' : 'mt-6 text-sm'}`}>
               Kindly respond by {new Date(rsvpDeadline).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
             </p>
           )}
@@ -620,36 +620,36 @@ function PreviewSection({
       const wishesDescription = getValue('description', 'Share your love and blessings for our new journey together')
       
       return (
-        <div className={`${isMobile ? 'p-6' : 'p-12'}`}>
-          <div className="text-center mb-8">
-            <MessageCircle className="w-12 h-12 mx-auto mb-4" style={{ color: colorScheme.accent }} />
+        <div className={`${isMobile ? 'p-4' : 'p-12'}`}>
+          <div className={`text-center ${isMobile ? 'mb-4' : 'mb-8'}`}>
+            <MessageCircle className={`mx-auto ${isMobile ? 'w-10 h-10 mb-3' : 'w-12 h-12 mb-4'}`} style={{ color: colorScheme.accent }} />
             <h2 
-              className={`font-serif font-bold mb-2 ${isMobile ? 'text-2xl' : 'text-3xl'}`}
+              className={`font-serif font-bold ${isMobile ? 'text-xl mb-1' : 'text-3xl mb-2'}`}
               style={{ color: colorScheme.primary }}
             >
               {wishesTitle}
             </h2>
-            <p className="text-gray-600">{wishesDescription}</p>
+            <p className={`text-gray-600 ${isMobile ? 'text-sm' : 'text-base'}`}>{wishesDescription}</p>
           </div>
-          <div className="max-w-md mx-auto space-y-4">
+          <div className={`max-w-md mx-auto ${isMobile ? 'space-y-3' : 'space-y-4'}`}>
             <input 
               type="text" 
               placeholder="Your Name" 
-              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-purple-400 transition-colors"
+              className={`w-full border-2 border-gray-200 focus:outline-none focus:border-purple-400 transition-colors ${isMobile ? 'px-3 py-2.5 rounded-lg text-sm' : 'px-4 py-3 rounded-xl'}`}
               disabled
             />
             <textarea 
-              placeholder="Write your heartfelt wishes for the couple..." 
-              rows={4}
-              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-purple-400 transition-colors"
+              placeholder="Write your heartfelt wishes..." 
+              rows={isMobile ? 3 : 4}
+              className={`w-full border-2 border-gray-200 focus:outline-none focus:border-purple-400 transition-colors ${isMobile ? 'px-3 py-2.5 rounded-lg text-sm' : 'px-4 py-3 rounded-xl'}`}
               disabled
             />
             <button 
-              className="w-full py-4 rounded-xl text-white font-semibold text-lg shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
+              className={`w-full text-white font-semibold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 ${isMobile ? 'py-3 rounded-lg text-base' : 'py-4 rounded-xl text-lg'}`}
               style={{ backgroundColor: colorScheme.secondary }}
               disabled
             >
-              <Heart className="w-5 h-5" />
+              <Heart className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
               Send Wishes
             </button>
           </div>
@@ -713,8 +713,9 @@ function PreviewSection({
           className={`${isMobile ? 'p-6' : 'p-12'} text-center`}
           style={{ background: `linear-gradient(135deg, ${colorScheme.primary}15, ${colorScheme.secondary}15)` }}
         >
-          <p className="text-gray-600 italic mb-4">{countdownMessage}</p>
-          <div className={`flex justify-center ${isMobile ? 'gap-3' : 'gap-6'}`}>
+          <p className={`text-gray-600 italic ${isMobile ? 'mb-6 text-sm' : 'mb-8 text-base'}`}>{countdownMessage}</p>
+          {/* Mobile: 2x2 grid, Desktop: 4 in a row */}
+          <div className={`${isMobile ? 'grid grid-cols-2 gap-4 max-w-[280px] mx-auto' : 'flex justify-center gap-6'}`}>
             {[
               { value: days, label: 'Days' },
               { value: hours, label: 'Hours' },
@@ -723,7 +724,7 @@ function PreviewSection({
             ].map((item) => (
               <div key={item.label} className="text-center">
                 <div 
-                  className={`${isMobile ? 'w-16 h-16 text-xl' : 'w-24 h-24 text-3xl'} rounded-2xl flex items-center justify-center font-bold text-white shadow-lg`}
+                  className={`${isMobile ? 'w-full aspect-square max-w-[120px] mx-auto text-2xl' : 'w-24 h-24 text-3xl'} rounded-2xl flex items-center justify-center font-bold text-white shadow-lg`}
                   style={{ 
                     background: `linear-gradient(135deg, ${colorScheme.primary}, ${colorScheme.secondary})`,
                     boxShadow: `0 4px 15px ${colorScheme.primary}40`
@@ -731,7 +732,7 @@ function PreviewSection({
                 >
                   {String(item.value).padStart(2, '0')}
                 </div>
-                <p className={`mt-2 font-medium ${isMobile ? 'text-xs' : 'text-sm'}`} style={{ color: colorScheme.primary }}>{item.label}</p>
+                <p className={`mt-2 font-medium ${isMobile ? 'text-sm' : 'text-sm'}`} style={{ color: colorScheme.primary }}>{item.label}</p>
               </div>
             ))}
           </div>
@@ -740,17 +741,17 @@ function PreviewSection({
 
     case 'gift_registry':
       return (
-        <div className={`${isMobile ? 'p-6' : 'p-12'}`}>
+        <div className={`${isMobile ? 'p-4' : 'p-12'}`}>
           <h2 
-            className={`font-bold mb-6 text-center ${isMobile ? 'text-2xl' : 'text-3xl'}`}
+            className={`font-bold text-center ${isMobile ? 'text-xl mb-4' : 'text-3xl mb-6'}`}
             style={{ color: colorScheme.primary }}
           >
             Gift Registry
           </h2>
           <div className="flex justify-center gap-4">
-            <Gift className="w-12 h-12" style={{ color: colorScheme.primary }} />
+            <Gift className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'}`} style={{ color: colorScheme.primary }} />
           </div>
-          <p className="mt-4 text-center text-gray-600">
+          <p className={`text-center text-gray-600 ${isMobile ? 'mt-3 text-sm' : 'mt-4 text-base'}`}>
             Your presence is the greatest gift. If you wish to give, please find our registry links here.
           </p>
         </div>
@@ -762,19 +763,19 @@ function PreviewSection({
       
       return (
         <div 
-          className={`${isMobile ? 'p-8' : 'p-12'} text-center`}
+          className={`${isMobile ? 'p-6' : 'p-12'} text-center`}
           style={{ 
             background: `linear-gradient(135deg, ${colorScheme.primary}, ${colorScheme.secondary})`,
             color: 'white' 
           }}
         >
-          <Heart className="w-8 h-8 mx-auto mb-4 opacity-80" />
-          <p className={`font-serif italic ${isMobile ? 'text-lg' : 'text-xl'}`}>{footerMessage}</p>
+          <Heart className={`mx-auto opacity-80 ${isMobile ? 'w-6 h-6 mb-3' : 'w-8 h-8 mb-4'}`} />
+          <p className={`font-serif italic ${isMobile ? 'text-base' : 'text-xl'}`}>{footerMessage}</p>
           {hashtag && (
-            <p className="mt-4 text-white/70 font-medium">{hashtag}</p>
+            <p className={`text-white/70 font-medium ${isMobile ? 'mt-3 text-sm' : 'mt-4 text-base'}`}>{hashtag}</p>
           )}
-          <div className="mt-6 pt-6 border-t border-white/20">
-            <p className="text-sm text-white/60">Made with love using Evento</p>
+          <div className={`border-t border-white/20 ${isMobile ? 'mt-4 pt-4' : 'mt-6 pt-6'}`}>
+            <p className={`text-white/60 ${isMobile ? 'text-xs' : 'text-sm'}`}>Made with love using Evento</p>
           </div>
         </div>
       )
