@@ -148,9 +148,8 @@ export default function TemplatePreviewPage() {
               .sort((a, b) => a.order - b.order)
               .map((section) => (
                 <PreviewSection
-                  key={section.id}
+                  key={section.id || section.sectionId}
                   section={section}
-                  data={previewData[section.id] || {}}
                   colorScheme={colorScheme}
                   deviceMode={deviceMode}
                 />
@@ -168,230 +167,363 @@ export default function TemplatePreviewPage() {
 
 function PreviewSection({
   section,
-  data,
   colorScheme,
   deviceMode
 }: {
-  section: SectionDefinition
-  data: Record<string, unknown>
+  section: SectionDefinition & { sampleValues?: Record<string, unknown> }
   colorScheme: { primary: string; secondary: string; accent: string; background: string; text: string }
   deviceMode: DeviceMode
 }) {
+  const sampleValues = section.sampleValues || {}
+  
   const getValue = (fieldName: string, defaultValue: string = '') => {
-    return (data[fieldName] as string) || defaultValue
+    return (sampleValues[fieldName] as string) || defaultValue
+  }
+
+  const getArray = (fieldName: string): string[] => {
+    const value = sampleValues[fieldName]
+    return Array.isArray(value) ? value : []
   }
 
   const isMobile = deviceMode === 'mobile'
 
   switch (section.type) {
     case 'hero':
+      const groomName = getValue('groomName', 'Groom')
+      const brideName = getValue('brideName', 'Bride')
+      const tagline = getValue('tagline', 'Together Forever')
+      const backgroundImage = getValue('backgroundImage', '')
+      const weddingDate = getValue('weddingDate', '')
+      
       return (
         <div 
-          className="relative min-h-[400px] flex items-center justify-center text-center p-8"
+          className="relative min-h-[500px] flex items-center justify-center text-center p-8"
           style={{ 
-            background: `linear-gradient(135deg, ${colorScheme.primary}20, ${colorScheme.secondary}20)`,
-            backgroundImage: getValue('background_image') ? `url(${getValue('background_image')})` : undefined,
+            backgroundImage: backgroundImage 
+              ? `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url(${backgroundImage})` 
+              : `linear-gradient(135deg, ${colorScheme.primary}, ${colorScheme.secondary})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center'
           }}
         >
           <div className="relative z-10">
+            <p className={`text-white/90 uppercase tracking-[0.3em] mb-4 ${isMobile ? 'text-sm' : 'text-lg'}`}>
+              The Wedding of
+            </p>
             <h1 
-              className={`font-bold mb-4 ${isMobile ? 'text-3xl' : 'text-5xl'}`}
-              style={{ color: colorScheme.primary }}
+              className={`font-serif font-bold mb-4 text-white ${isMobile ? 'text-4xl' : 'text-6xl'}`}
+              style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}
             >
-              {getValue('title', 'Event Title')}
+              {groomName} & {brideName}
             </h1>
             <p 
-              className={`${isMobile ? 'text-lg' : 'text-2xl'}`}
-              style={{ color: colorScheme.text }}
+              className={`text-white/90 italic ${isMobile ? 'text-lg' : 'text-2xl'}`}
             >
-              {getValue('subtitle', 'A beautiful celebration')}
+              {tagline}
             </p>
+            {weddingDate && (
+              <p className={`mt-6 text-white/80 ${isMobile ? 'text-base' : 'text-xl'}`}>
+                {new Date(weddingDate).toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </p>
+            )}
           </div>
         </div>
       )
 
     case 'event_details':
+      const ceremonyTime = getValue('ceremonyTime', '14:00')
+      const ceremonyVenue = getValue('ceremonyVenue', 'The Chapel')
+      const receptionTime = getValue('receptionTime', '17:00')
+      const receptionVenue = getValue('receptionVenue', 'The Ballroom')
+      const dressCode = getValue('dressCode', 'Formal Attire')
+      
       return (
-        <div className={`${isMobile ? 'p-6' : 'p-12'}`} style={{ color: colorScheme.text }}>
+        <div className={`${isMobile ? 'p-6' : 'p-12'}`} style={{ backgroundColor: colorScheme.background }}>
           <h2 
-            className={`font-bold mb-6 text-center ${isMobile ? 'text-2xl' : 'text-3xl'}`}
+            className={`font-serif font-bold mb-8 text-center ${isMobile ? 'text-2xl' : 'text-3xl'}`}
             style={{ color: colorScheme.primary }}
           >
-            Event Details
+            Wedding Schedule
           </h2>
-          <div className={`flex ${isMobile ? 'flex-col gap-4' : 'justify-center gap-12'}`}>
-            <div className="flex items-center gap-3">
-              <Calendar className="w-6 h-6" style={{ color: colorScheme.primary }} />
+          <div className={`max-w-2xl mx-auto ${isMobile ? 'space-y-6' : 'space-y-8'}`}>
+            <div className="flex items-start gap-4 p-4 rounded-xl" style={{ backgroundColor: `${colorScheme.primary}10` }}>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: colorScheme.primary }}>
+                <Heart className="w-6 h-6 text-white" />
+              </div>
               <div>
-                <p className="text-sm text-gray-500">Date</p>
-                <p className="font-medium">{getValue('event_date', 'December 25, 2025')}</p>
+                <p className="text-sm uppercase tracking-wider" style={{ color: colorScheme.primary }}>Ceremony</p>
+                <p className="font-semibold text-lg" style={{ color: colorScheme.text }}>{ceremonyTime}</p>
+                <p className="text-gray-600">{ceremonyVenue}</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <Clock className="w-6 h-6" style={{ color: colorScheme.primary }} />
+            <div className="flex items-start gap-4 p-4 rounded-xl" style={{ backgroundColor: `${colorScheme.secondary}10` }}>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: colorScheme.secondary }}>
+                <Users className="w-6 h-6 text-white" />
+              </div>
               <div>
-                <p className="text-sm text-gray-500">Time</p>
-                <p className="font-medium">{getValue('event_time', '6:00 PM')}</p>
+                <p className="text-sm uppercase tracking-wider" style={{ color: colorScheme.secondary }}>Reception</p>
+                <p className="font-semibold text-lg" style={{ color: colorScheme.text }}>{receptionTime}</p>
+                <p className="text-gray-600">{receptionVenue}</p>
               </div>
             </div>
+            {dressCode && (
+              <div className="text-center pt-4 border-t border-gray-200">
+                <p className="text-sm text-gray-500">Dress Code</p>
+                <p className="font-medium" style={{ color: colorScheme.primary }}>{dressCode}</p>
+              </div>
+            )}
           </div>
-          {getValue('description') && (
-            <p className="mt-6 text-center text-gray-600">{getValue('description')}</p>
-          )}
         </div>
       )
 
     case 'venue':
+      const venueName = getValue('venueName', 'Beautiful Venue')
+      const venueAddress = getValue('address', '123 Event Street, City, Country')
+      const venueImage = getValue('venueImage', '')
+      const mapUrl = getValue('mapUrl', '')
+      const directions = getValue('directions', '')
+      
       return (
-        <div 
-          className={`${isMobile ? 'p-6' : 'p-12'}`}
-          style={{ backgroundColor: `${colorScheme.primary}10` }}
-        >
+        <div className={`${isMobile ? 'p-6' : 'p-12'}`}>
           <h2 
-            className={`font-bold mb-6 text-center ${isMobile ? 'text-2xl' : 'text-3xl'}`}
+            className={`font-serif font-bold mb-8 text-center ${isMobile ? 'text-2xl' : 'text-3xl'}`}
             style={{ color: colorScheme.primary }}
           >
-            Venue
+            The Venue
           </h2>
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <MapPin className="w-5 h-5" style={{ color: colorScheme.primary }} />
-              <p className="font-semibold text-lg">{getValue('venue_name', 'Beautiful Venue')}</p>
-            </div>
-            <p className="text-gray-600">{getValue('address', '123 Event Street, City, Country')}</p>
-            {getValue('map_url') && (
-              <a 
-                href={getValue('map_url')} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="inline-block mt-4 px-6 py-2 rounded-full text-white"
-                style={{ backgroundColor: colorScheme.primary }}
-              >
-                View on Map
-              </a>
+          <div className="max-w-4xl mx-auto">
+            {venueImage && (
+              <div className="relative rounded-2xl overflow-hidden mb-6 shadow-lg">
+                <img 
+                  src={venueImage} 
+                  alt={venueName}
+                  className="w-full h-64 object-cover"
+                />
+                <div 
+                  className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"
+                />
+                <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+                  <div className="flex items-center gap-2 mb-1">
+                    <MapPin className="w-5 h-5" />
+                    <h3 className="font-semibold text-xl">{venueName}</h3>
+                  </div>
+                  <p className="text-white/80">{venueAddress}</p>
+                </div>
+              </div>
+            )}
+            {!venueImage && (
+              <div className="text-center p-8 rounded-2xl" style={{ backgroundColor: `${colorScheme.primary}10` }}>
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <MapPin className="w-6 h-6" style={{ color: colorScheme.primary }} />
+                  <h3 className="font-semibold text-xl" style={{ color: colorScheme.primary }}>{venueName}</h3>
+                </div>
+                <p className="text-gray-600">{venueAddress}</p>
+              </div>
+            )}
+            {directions && (
+              <p className="mt-4 text-center text-gray-600 italic">{directions}</p>
+            )}
+            {mapUrl && (
+              <div className="mt-6 text-center">
+                <a 
+                  href={mapUrl.replace('/embed?', '/place?')} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium transition-transform hover:scale-105"
+                  style={{ backgroundColor: colorScheme.primary }}
+                >
+                  <Globe className="w-5 h-5" />
+                  Get Directions
+                </a>
+              </div>
             )}
           </div>
         </div>
       )
 
     case 'gallery':
+      const galleryTitle = getValue('title', 'Our Moments Together')
+      const galleryImages = getArray('images')
+      
       return (
-        <div className={`${isMobile ? 'p-6' : 'p-12'}`}>
+        <div className={`${isMobile ? 'p-6' : 'p-12'}`} style={{ backgroundColor: `${colorScheme.accent}15` }}>
           <h2 
-            className={`font-bold mb-6 text-center ${isMobile ? 'text-2xl' : 'text-3xl'}`}
+            className={`font-serif font-bold mb-8 text-center ${isMobile ? 'text-2xl' : 'text-3xl'}`}
             style={{ color: colorScheme.primary }}
           >
-            Gallery
+            {galleryTitle}
           </h2>
-          <div className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-3'} gap-4`}>
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div 
-                key={i} 
-                className="aspect-square rounded-xl"
-                style={{ background: `linear-gradient(135deg, ${colorScheme.primary}30, ${colorScheme.secondary}30)` }}
-              />
-            ))}
+          <div className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-3'} gap-4 max-w-4xl mx-auto`}>
+            {galleryImages.length > 0 ? (
+              galleryImages.map((imageUrl, index) => (
+                <div 
+                  key={index} 
+                  className="aspect-square rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow cursor-pointer group"
+                >
+                  <img 
+                    src={imageUrl} 
+                    alt={`Gallery image ${index + 1}`}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                  />
+                </div>
+              ))
+            ) : (
+              [1, 2, 3, 4, 5, 6].map((i) => (
+                <div 
+                  key={i} 
+                  className="aspect-square rounded-xl"
+                  style={{ background: `linear-gradient(135deg, ${colorScheme.primary}30, ${colorScheme.secondary}30)` }}
+                />
+              ))
+            )}
           </div>
-          {getValue('caption') && (
-            <p className="mt-4 text-center text-gray-600">{getValue('caption')}</p>
-          )}
         </div>
       )
 
     case 'story':
+      const storyTitle = getValue('title', 'Our Love Story')
+      const storyContent = getValue('story', 'Share your beautiful story here. Tell your guests about how you met, your journey together, and what makes this celebration special.')
+      const coupleImage = getValue('coupleImage', '')
+      
       return (
         <div className={`${isMobile ? 'p-6' : 'p-12'}`}>
           <h2 
-            className={`font-bold mb-6 text-center ${isMobile ? 'text-2xl' : 'text-3xl'}`}
+            className={`font-serif font-bold mb-8 text-center ${isMobile ? 'text-2xl' : 'text-3xl'}`}
             style={{ color: colorScheme.primary }}
           >
-            {getValue('story_title', 'Our Story')}
+            {storyTitle}
           </h2>
-          <p className="text-gray-600 text-center max-w-2xl mx-auto leading-relaxed">
-            {getValue('story_content', 'Share your beautiful story here. Tell your guests about how you met, your journey together, and what makes this celebration special.')}
-          </p>
+          <div className="max-w-4xl mx-auto">
+            {coupleImage && (
+              <div className="mb-8 flex justify-center">
+                <div className="relative">
+                  <img 
+                    src={coupleImage} 
+                    alt="Our Story"
+                    className={`rounded-2xl shadow-xl object-cover ${isMobile ? 'w-full h-64' : 'w-96 h-80'}`}
+                  />
+                  <div 
+                    className="absolute -bottom-4 -right-4 w-24 h-24 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: colorScheme.accent }}
+                  >
+                    <Heart className="w-10 h-10 text-white" />
+                  </div>
+                </div>
+              </div>
+            )}
+            <p className="text-gray-600 text-center leading-relaxed text-lg italic">
+              &ldquo;{storyContent}&rdquo;
+            </p>
+          </div>
         </div>
       )
 
     case 'rsvp':
+      const rsvpTitle = getValue('title', 'Join Our Celebration')
+      const rsvpMessage = getValue('message', 'We would be honored to have you celebrate this special day with us.')
+      const rsvpDeadline = getValue('deadline', '')
+      
       return (
         <div 
           className={`${isMobile ? 'p-6' : 'p-12'}`}
-          style={{ backgroundColor: `${colorScheme.primary}10` }}
+          style={{ backgroundColor: `${colorScheme.primary}08` }}
         >
           <h2 
-            className={`font-bold mb-6 text-center ${isMobile ? 'text-2xl' : 'text-3xl'}`}
+            className={`font-serif font-bold mb-4 text-center ${isMobile ? 'text-2xl' : 'text-3xl'}`}
             style={{ color: colorScheme.primary }}
           >
-            {getValue('rsvp_title', 'RSVP')}
+            {rsvpTitle}
           </h2>
+          <p className="text-center text-gray-600 mb-8 max-w-lg mx-auto">{rsvpMessage}</p>
           <div className="max-w-md mx-auto space-y-4">
             <input 
               type="text" 
-              placeholder="Your Name" 
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2"
-              style={{ '--tw-ring-color': colorScheme.primary } as any}
+              placeholder="Your Full Name" 
+              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-purple-400 transition-colors"
               disabled
             />
             <input 
               type="email" 
-              placeholder="Your Email" 
-              className="w-full px-4 py-3 rounded-xl border border-gray-200"
+              placeholder="Email Address" 
+              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-purple-400 transition-colors"
+              disabled
+            />
+            <input 
+              type="number" 
+              placeholder="Number of Guests" 
+              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-purple-400 transition-colors"
               disabled
             />
             <select 
-              className="w-full px-4 py-3 rounded-xl border border-gray-200"
+              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-purple-400 transition-colors"
               disabled
             >
               <option>Will you attend?</option>
-              <option>Yes, I will attend</option>
-              <option>Sorry, I cannot attend</option>
+              <option>Joyfully Accept</option>
+              <option>Regretfully Decline</option>
             </select>
+            <textarea 
+              placeholder="Dietary restrictions or special requests..." 
+              rows={2}
+              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-purple-400 transition-colors"
+              disabled
+            />
             <button 
-              className="w-full py-3 rounded-xl text-white font-medium"
+              className="w-full py-4 rounded-xl text-white font-semibold text-lg shadow-lg hover:shadow-xl transition-all"
               style={{ backgroundColor: colorScheme.primary }}
               disabled
             >
-              Submit RSVP
+              Send RSVP
             </button>
           </div>
-          {getValue('rsvp_deadline') && (
-            <p className="mt-4 text-center text-sm text-gray-500">
-              Please respond by {getValue('rsvp_deadline')}
+          {rsvpDeadline && (
+            <p className="mt-6 text-center text-sm text-gray-500">
+              Kindly respond by {new Date(rsvpDeadline).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
             </p>
           )}
         </div>
       )
 
     case 'wishes':
+      const wishesTitle = getValue('title', 'Send Your Wishes')
+      const wishesDescription = getValue('description', 'Share your love and blessings for our new journey together')
+      
       return (
         <div className={`${isMobile ? 'p-6' : 'p-12'}`}>
-          <h2 
-            className={`font-bold mb-6 text-center ${isMobile ? 'text-2xl' : 'text-3xl'}`}
-            style={{ color: colorScheme.primary }}
-          >
-            {getValue('wishes_title', 'Leave Your Wishes')}
-          </h2>
+          <div className="text-center mb-8">
+            <MessageCircle className="w-12 h-12 mx-auto mb-4" style={{ color: colorScheme.accent }} />
+            <h2 
+              className={`font-serif font-bold mb-2 ${isMobile ? 'text-2xl' : 'text-3xl'}`}
+              style={{ color: colorScheme.primary }}
+            >
+              {wishesTitle}
+            </h2>
+            <p className="text-gray-600">{wishesDescription}</p>
+          </div>
           <div className="max-w-md mx-auto space-y-4">
             <input 
               type="text" 
               placeholder="Your Name" 
-              className="w-full px-4 py-3 rounded-xl border border-gray-200"
+              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-purple-400 transition-colors"
               disabled
             />
             <textarea 
-              placeholder="Write your wishes..." 
+              placeholder="Write your heartfelt wishes for the couple..." 
               rows={4}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200"
+              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-purple-400 transition-colors"
               disabled
             />
             <button 
-              className="w-full py-3 rounded-xl text-white font-medium"
-              style={{ backgroundColor: colorScheme.primary }}
+              className="w-full py-4 rounded-xl text-white font-semibold text-lg shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
+              style={{ backgroundColor: colorScheme.secondary }}
               disabled
             >
+              <Heart className="w-5 h-5" />
               Send Wishes
             </button>
           </div>
@@ -433,24 +565,47 @@ function PreviewSection({
       )
 
     case 'countdown':
+      const targetDate = getValue('targetDate', '')
+      const countdownMessage = getValue('message', 'Counting down to our forever...')
+      
+      // Calculate countdown values
+      let days = 0, hours = 0, minutes = 0, seconds = 0
+      if (targetDate) {
+        const target = new Date(targetDate).getTime()
+        const now = new Date().getTime()
+        const diff = target - now
+        if (diff > 0) {
+          days = Math.floor(diff / (1000 * 60 * 60 * 24))
+          hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+          minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+          seconds = Math.floor((diff % (1000 * 60)) / 1000)
+        }
+      }
+      
       return (
-        <div className={`${isMobile ? 'p-6' : 'p-12'} text-center`}>
-          <h2 
-            className={`font-bold mb-6 ${isMobile ? 'text-2xl' : 'text-3xl'}`}
-            style={{ color: colorScheme.primary }}
-          >
-            Countdown
-          </h2>
-          <div className={`flex justify-center ${isMobile ? 'gap-4' : 'gap-8'}`}>
-            {['Days', 'Hours', 'Minutes', 'Seconds'].map((unit) => (
-              <div key={unit} className="text-center">
+        <div 
+          className={`${isMobile ? 'p-6' : 'p-12'} text-center`}
+          style={{ background: `linear-gradient(135deg, ${colorScheme.primary}15, ${colorScheme.secondary}15)` }}
+        >
+          <p className="text-gray-600 italic mb-4">{countdownMessage}</p>
+          <div className={`flex justify-center ${isMobile ? 'gap-3' : 'gap-6'}`}>
+            {[
+              { value: days, label: 'Days' },
+              { value: hours, label: 'Hours' },
+              { value: minutes, label: 'Minutes' },
+              { value: seconds, label: 'Seconds' }
+            ].map((item) => (
+              <div key={item.label} className="text-center">
                 <div 
-                  className={`${isMobile ? 'w-16 h-16 text-2xl' : 'w-20 h-20 text-3xl'} rounded-xl flex items-center justify-center font-bold text-white`}
-                  style={{ backgroundColor: colorScheme.primary }}
+                  className={`${isMobile ? 'w-16 h-16 text-xl' : 'w-24 h-24 text-3xl'} rounded-2xl flex items-center justify-center font-bold text-white shadow-lg`}
+                  style={{ 
+                    background: `linear-gradient(135deg, ${colorScheme.primary}, ${colorScheme.secondary})`,
+                    boxShadow: `0 4px 15px ${colorScheme.primary}40`
+                  }}
                 >
-                  00
+                  {String(item.value).padStart(2, '0')}
                 </div>
-                <p className="mt-2 text-sm text-gray-500">{unit}</p>
+                <p className={`mt-2 font-medium ${isMobile ? 'text-xs' : 'text-sm'}`} style={{ color: colorScheme.primary }}>{item.label}</p>
               </div>
             ))}
           </div>
@@ -476,12 +631,25 @@ function PreviewSection({
       )
 
     case 'footer':
+      const footerMessage = getValue('message', 'Thank you for being part of our love story')
+      const hashtag = getValue('hashtag', '')
+      
       return (
         <div 
-          className={`${isMobile ? 'p-6' : 'p-8'} text-center`}
-          style={{ backgroundColor: colorScheme.primary, color: 'white' }}
+          className={`${isMobile ? 'p-8' : 'p-12'} text-center`}
+          style={{ 
+            background: `linear-gradient(135deg, ${colorScheme.primary}, ${colorScheme.secondary})`,
+            color: 'white' 
+          }}
         >
-          <p className="text-sm opacity-80">Made with love using Evento</p>
+          <Heart className="w-8 h-8 mx-auto mb-4 opacity-80" />
+          <p className={`font-serif italic ${isMobile ? 'text-lg' : 'text-xl'}`}>{footerMessage}</p>
+          {hashtag && (
+            <p className="mt-4 text-white/70 font-medium">{hashtag}</p>
+          )}
+          <div className="mt-6 pt-6 border-t border-white/20">
+            <p className="text-sm text-white/60">Made with love using Evento</p>
+          </div>
         </div>
       )
 
