@@ -75,34 +75,63 @@ export default function EditTemplatePage() {
     status: 'draft' as 'draft' | 'published' | 'archived',
   })
 
-  const { data: existingTemplate, isLoading } = useQuery({
+  const { data: templateData, isLoading } = useQuery({
     queryKey: ['template', templateId],
     queryFn: async () => {
       const response = await templateApi.getOne(templateId)
-      // API returns { template: {...}, version: null, sections: [] }
-      return (response.data.template || response.data) as Template
+      // API returns { template: {...}, version: {...}, sections: [...] }
+      const template = response.data.template || response.data
+      const version = response.data.version || {}
+      const sections = response.data.sections || []
+      return { template, version, sections }
     },
   })
 
   useEffect(() => {
-    if (existingTemplate) {
+    if (templateData) {
+      const { template: existingTemplate, version, sections } = templateData
+      // Map API sections to SectionDefinition format
+      const mappedSections: SectionDefinition[] = sections.map((s: any) => ({
+        id: s.sectionId || s._id,
+        type: s.type,
+        name: s.name,
+        description: s.description || '',
+        order: s.order,
+        isRequired: s.isRequired || false,
+        canDisable: s.canDisable !== false,
+        fields: s.fields?.map((f: any) => ({
+          id: f.fieldId || f._id,
+          key: f.key,
+          type: f.type,
+          label: f.label,
+          placeholder: f.placeholder || '',
+          required: f.validation?.required || false,
+          options: f.options || [],
+        })) || [],
+        sampleValues: s.sampleValues || {},
+      }))
+      
+      // Get colorSchemes and fontPairs from version (new schema) or template (legacy)
+      const colorSchemes = version?.colorSchemes || existingTemplate.colorSchemes || []
+      const fontPairs = (version?.fontPairs || existingTemplate.fontPairs || []).map((fp: any) => ({
+        ...fp,
+        heading: fp.headingFont || fp.heading || '',
+        body: fp.bodyFont || fp.body || '',
+      }))
+      
       setTemplate({
         name: existingTemplate.name,
         description: existingTemplate.description || '',
         category: existingTemplate.category as any,
         thumbnail: existingTemplate.thumbnail || '',
-        sections: existingTemplate.sections || [],
-        colorSchemes: existingTemplate.colorSchemes || [],
-        fontPairs: existingTemplate.fontPairs?.map(fp => ({
-          ...fp,
-          heading: (fp as any).headingFont || (fp as any).heading || '',
-          body: (fp as any).bodyFont || (fp as any).body || '',
-        })) || [],
+        sections: mappedSections,
+        colorSchemes,
+        fontPairs,
         previewDataSets: existingTemplate.previewDataSets || [],
         status: existingTemplate.status,
       })
     }
-  }, [existingTemplate])
+  }, [templateData])
 
   const updateMutation = useMutation({
     mutationFn: async (data: typeof template) => {
