@@ -35,8 +35,11 @@ export default function TemplatePreviewPage() {
     queryKey: ['template-preview', templateId],
     queryFn: async () => {
       const response = await templateApi.getOne(templateId)
-      // API returns { template: {...}, version: null, sections: [] }
-      return (response.data.template || response.data) as Template
+      // API returns { template: {...}, version: {...}, sections: [...] }
+      const template = response.data.template || response.data
+      const sections = response.data.sections || []
+      // Merge sections into template object for rendering
+      return { ...template, sections } as Template
     },
   })
 
