@@ -80,9 +80,9 @@ export const createTemplate = async (req: AuthRequest, res: Response): Promise<v
       for (let i = 0; i < sections.length; i++) {
         const sectionData = sections[i];
         
-        // Get sample values from previewDataSets if available
-        let sampleValues: Record<string, unknown> = {};
-        if (previewDataSets && previewDataSets.length > 0 && previewDataSets[0].data) {
+        // Get sample values - prioritize sectionData.sampleValues, then fall back to previewDataSets
+        let sampleValues: Record<string, unknown> = sectionData.sampleValues || {};
+        if (Object.keys(sampleValues).length === 0 && previewDataSets && previewDataSets.length > 0 && previewDataSets[0].data) {
           sampleValues = previewDataSets[0].data[sectionData.id] || {};
         }
 

@@ -17,7 +17,8 @@ import {
   Gift,
   Phone,
   Mail,
-  Globe
+  Globe,
+  Star
 } from 'lucide-react'
 import { templateApi } from '@/lib/api'
 import { Template, SectionDefinition } from '@/types'
@@ -30,6 +31,7 @@ export default function TemplatePreviewPage() {
   const templateId = params.id as string
   const [deviceMode, setDeviceMode] = useState<DeviceMode>('desktop')
   const [activePreviewSet, setActivePreviewSet] = useState(0)
+  const [activeColorScheme, setActiveColorScheme] = useState(0)
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['template-preview', templateId],
@@ -62,7 +64,8 @@ export default function TemplatePreviewPage() {
 
   const template = data
   const previewData = template.previewDataSets?.[activePreviewSet]?.data || {}
-  const colorScheme = template.colorSchemes?.[0] || {
+  const colorSchemes = template.colorSchemes || []
+  const colorScheme = colorSchemes[activeColorScheme] || {
     primary: '#9333ea',
     secondary: '#c084fc',
     accent: '#f0abfc',
@@ -136,6 +139,50 @@ export default function TemplatePreviewPage() {
             ))}
           </div>
         )}
+
+        {colorSchemes.length > 1 && (
+          <div className="mt-4">
+            <p className="text-sm text-gray-500 mb-2">Color Theme:</p>
+            <div className="flex gap-2 overflow-x-auto">
+              {colorSchemes.map((scheme: { id?: string; name?: string; primary: string; secondary: string; accent?: string }, index: number) => (
+                <button
+                  key={scheme.id || index}
+                  onClick={() => setActiveColorScheme(index)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-all ${
+                    activeColorScheme === index
+                      ? 'ring-2 ring-offset-2 shadow-md'
+                      : 'hover:shadow-sm'
+                  }`}
+                  style={{ 
+                    backgroundColor: scheme.primary + '15',
+                    borderColor: scheme.primary,
+                    ringColor: scheme.primary
+                  }}
+                >
+                  <div className="flex gap-1">
+                    <div 
+                      className="w-4 h-4 rounded-full" 
+                      style={{ backgroundColor: scheme.primary }}
+                    />
+                    <div 
+                      className="w-4 h-4 rounded-full" 
+                      style={{ backgroundColor: scheme.secondary }}
+                    />
+                    {scheme.accent && (
+                      <div 
+                        className="w-4 h-4 rounded-full" 
+                        style={{ backgroundColor: scheme.accent }}
+                      />
+                    )}
+                  </div>
+                  <span className="text-sm font-medium" style={{ color: scheme.primary }}>
+                    {scheme.name || `Theme ${index + 1}`}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="mt-6 flex justify-center">
@@ -189,11 +236,19 @@ function PreviewSection({
 
   switch (section.type) {
     case 'hero':
-      const groomName = getValue('groomName', 'Groom')
-      const brideName = getValue('brideName', 'Bride')
+      // Support both wedding (groomName/brideName) and birthday (celebrantName/age) templates
+      const celebrantName = getValue('celebrantName', '')
+      const age = getValue('age', '')
+      const groomName = getValue('groomName', '')
+      const brideName = getValue('brideName', '')
       const tagline = getValue('tagline', 'Together Forever')
       const backgroundImage = getValue('backgroundImage', '')
       const weddingDate = getValue('weddingDate', '')
+      const birthdayDate = getValue('birthdayDate', '')
+      
+      // Determine if this is a birthday or wedding template
+      const isBirthday = celebrantName || age
+      const eventDate = birthdayDate || weddingDate
       
       return (
         <div 
@@ -207,23 +262,39 @@ function PreviewSection({
           }}
         >
           <div className="relative z-10">
-            <p className={`text-white/90 uppercase tracking-[0.3em] mb-4 ${isMobile ? 'text-sm' : 'text-lg'}`}>
-              The Wedding of
-            </p>
-            <h1 
-              className={`font-serif font-bold mb-4 text-white ${isMobile ? 'text-4xl' : 'text-6xl'}`}
-              style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}
-            >
-              {groomName} & {brideName}
-            </h1>
+            {isBirthday ? (
+              <>
+                <p className={`text-white/90 uppercase tracking-[0.3em] mb-4 ${isMobile ? 'text-sm' : 'text-lg'}`}>
+                  {celebrantName} is turning
+                </p>
+                <h1 
+                  className={`font-serif font-bold mb-4 text-white ${isMobile ? 'text-6xl' : 'text-8xl'}`}
+                  style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}
+                >
+                  {age}
+                </h1>
+              </>
+            ) : (
+              <>
+                <p className={`text-white/90 uppercase tracking-[0.3em] mb-4 ${isMobile ? 'text-sm' : 'text-lg'}`}>
+                  The Wedding of
+                </p>
+                <h1 
+                  className={`font-serif font-bold mb-4 text-white ${isMobile ? 'text-4xl' : 'text-6xl'}`}
+                  style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}
+                >
+                  {groomName || 'Groom'} & {brideName || 'Bride'}
+                </h1>
+              </>
+            )}
             <p 
               className={`text-white/90 italic ${isMobile ? 'text-lg' : 'text-2xl'}`}
             >
               {tagline}
             </p>
-            {weddingDate && (
+            {eventDate && (
               <p className={`mt-6 text-white/80 ${isMobile ? 'text-base' : 'text-xl'}`}>
-                {new Date(weddingDate).toLocaleDateString('en-US', { 
+                {new Date(eventDate).toLocaleDateString('en-US', { 
                   weekday: 'long', 
                   year: 'numeric', 
                   month: 'long', 
@@ -236,11 +307,60 @@ function PreviewSection({
       )
 
     case 'event_details':
+      // Support both wedding (ceremonyTime/ceremonyVenue) and birthday (partyTime/partyVenue) templates
+      const partyTime = getValue('partyTime', '')
+      const partyVenue = getValue('partyVenue', '')
+      const partyTheme = getValue('theme', '')
       const ceremonyTime = getValue('ceremonyTime', '14:00')
       const ceremonyVenue = getValue('ceremonyVenue', 'The Chapel')
       const receptionTime = getValue('receptionTime', '17:00')
       const receptionVenue = getValue('receptionVenue', 'The Ballroom')
       const dressCode = getValue('dressCode', 'Formal Attire')
+      
+      // Determine if this is a birthday or wedding template
+      const isBirthdayEvent = partyTime || partyVenue || partyTheme
+      
+      if (isBirthdayEvent) {
+        return (
+          <div className={`${isMobile ? 'p-6' : 'p-12'}`} style={{ backgroundColor: colorScheme.background }}>
+            <h2 
+              className={`font-serif font-bold mb-8 text-center ${isMobile ? 'text-2xl' : 'text-3xl'}`}
+              style={{ color: colorScheme.primary }}
+            >
+              Party Details
+            </h2>
+            <div className={`max-w-2xl mx-auto ${isMobile ? 'space-y-6' : 'space-y-8'}`}>
+              <div className="flex items-start gap-4 p-4 rounded-xl" style={{ backgroundColor: `${colorScheme.primary}10` }}>
+                <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: colorScheme.primary }}>
+                  <Clock className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm uppercase tracking-wider" style={{ color: colorScheme.primary }}>Party Time</p>
+                  <p className="font-semibold text-lg" style={{ color: colorScheme.text }}>{partyTime}</p>
+                  <p className="text-gray-600">{partyVenue}</p>
+                </div>
+              </div>
+              {partyTheme && (
+                <div className="flex items-start gap-4 p-4 rounded-xl" style={{ backgroundColor: `${colorScheme.accent}15` }}>
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: colorScheme.accent }}>
+                    <Star className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm uppercase tracking-wider" style={{ color: colorScheme.accent }}>Party Theme</p>
+                    <p className="font-semibold text-lg" style={{ color: colorScheme.text }}>{partyTheme}</p>
+                  </div>
+                </div>
+              )}
+              {dressCode && (
+                <div className="text-center pt-4 border-t border-gray-200">
+                  <p className="text-sm text-gray-500">Dress Code</p>
+                  <p className="font-medium" style={{ color: colorScheme.primary }}>{dressCode}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      }
       
       return (
         <div className={`${isMobile ? 'p-6' : 'p-12'}`} style={{ backgroundColor: colorScheme.background }}>
