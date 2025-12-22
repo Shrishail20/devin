@@ -14,7 +14,7 @@ import {
   Heart,
   Sparkles
 } from 'lucide-react'
-import { templateApi, siteApi } from '@/lib/api'
+import { templateApi, micrositeApi } from '@/lib/api'
 import { Template } from '@/types'
 
 const categories = ['All', 'Wedding', 'Birthday', 'Corporate', 'Party', 'Other']
@@ -35,11 +35,12 @@ export default function TemplatesPage() {
 
   const createSiteMutation = useMutation({
     mutationFn: async ({ templateId, title }: { templateId: string; title: string }) => {
-      const response = await siteApi.create(templateId, title)
-      return response.data
+      const response = await micrositeApi.create(templateId, title)
+      // Response is { microsite: {...}, sections: [...] }
+      return response.data.microsite || response.data
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['sites'] })
+      queryClient.invalidateQueries({ queryKey: ['microsites'] })
       router.push(`/dashboard/sites/${data._id}/edit`)
     },
     onError: (error: any) => {

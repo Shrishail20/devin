@@ -40,7 +40,14 @@ export default function SiteEditorPage() {
     queryKey: ['microsite', siteId],
     queryFn: async () => {
       const response = await micrositeApi.getOne(siteId)
-      return response.data as MicrositeWithDetails
+      // Response is { microsite, version, templateSections, sections }
+      const { microsite, version, templateSections, sections } = response.data
+      return {
+        ...microsite,
+        version,
+        templateSections,
+        sections
+      } as MicrositeWithDetails
     },
   })
 
@@ -90,6 +97,7 @@ export default function SiteEditorPage() {
   })
 
   const version = site?.version as TemplateVersion | undefined
+  const template = site?.templateId as any // Template reference from microsite
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev => 
@@ -190,7 +198,6 @@ export default function SiteEditorPage() {
         {activeTab === 'content' && (
           <ContentTab 
             site={site} 
-            template={template}
             expandedSections={expandedSections}
             toggleSection={toggleSection}
             onUpdate={(data) => {
@@ -201,7 +208,6 @@ export default function SiteEditorPage() {
         {activeTab === 'design' && (
           <DesignTab 
             site={site} 
-            template={template}
             onUpdate={(data) => {
               updateMutation.mutate(data)
             }}
@@ -222,18 +228,19 @@ export default function SiteEditorPage() {
 
 function ContentTab({ 
   site, 
-  template,
   expandedSections,
   toggleSection,
   onUpdate
 }: { 
-  site: Site
-  template?: Template
+  site: MicrositeWithDetails
   expandedSections: string[]
   toggleSection: (id: string) => void
-  onUpdate: (data: Partial<Site>) => void
+  onUpdate: (data: Partial<MicrositeWithDetails>) => void
 }) {
-  const sections = template?.sections || []
+  // Use templateSections from the API response (field definitions)
+  // and sections from the microsite (user content)
+  const templateSections = site.templateSections || []
+  const micrositeSections = site.sections || []
 
   return (
     <div className="space-y-4">
@@ -254,21 +261,21 @@ function ContentTab({
 
       <h3 className="font-semibold text-gray-900 mt-6 mb-2">Sections</h3>
       
-      {sections.length === 0 ? (
+      {templateSections.length === 0 ? (
         <div className="card text-center py-8">
           <p className="text-gray-500">No sections defined in this template</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {sections.sort((a, b) => a.order - b.order).map((section) => {
-            const siteSection = site.sections?.find(s => s.sectionId === section.id)
-            const isExpanded = expandedSections.includes(section.id)
-            const isVisible = siteSection?.visible !== false
+          {templateSections.sort((a: any, b: any) => a.order - b.order).map((section: any) => {
+            const micrositeSection = micrositeSections.find((s: any) => s.sectionId === section.sectionId)
+            const isExpanded = expandedSections.includes(section.sectionId)
+            const isVisible = micrositeSection?.enabled !== false
 
             return (
-              <div key={section.id} className="card p-0 overflow-hidden">
+              <div key={section.sectionId} className="card p-0 overflow-hidden">
                 <button
-                  onClick={() => toggleSection(section.id)}
+                  onClick={() => toggleSection(section.sectionId)}
                   className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
@@ -298,12 +305,12 @@ function ContentTab({
                       <span className="text-sm text-gray-600">Show this section</span>
                       <button
                         onClick={() => {
-                          const updatedSections = site.sections?.map(s => 
-                            s.sectionId === section.id 
-                              ? { ...s, visible: !s.visible }
+                          const updatedSections = micrositeSections.map((s: any) => 
+                            s.sectionId === section.sectionId 
+                              ? { ...s, enabled: !s.enabled }
                               : s
                           ) || []
-                          onUpdate({ sections: updatedSections })
+                          onUpdate({ sections: updatedSections } as any)
                         }}
                         className={`w-12 h-6 rounded-full transition-colors ${
                           isVisible ? 'bg-purple-600' : 'bg-gray-300'
@@ -315,22 +322,22 @@ function ContentTab({
                       </button>
                     </div>
 
-                    {section.fields?.map((field) => (
-                      <div key={field.id}>
+                    {section.fields?.map((field: any) => (
+                      <div key={field.fieldId}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           {field.label}
-                          {field.required && <span className="text-red-500 ml-1">*</span>}
+                          {field.validation?.required && <span className="text-red-500 ml-1">*</span>}
                         </label>
                         <FieldInput
                           field={field}
-                          value={siteSection?.content?.[field.id]}
+                          value={micrositeSection?.values?.[field.key]}
                           onChange={(value) => {
-                            const updatedSections = site.sections?.map(s => 
-                              s.sectionId === section.id 
-                                ? { ...s, content: { ...s.content, [field.id]: value } }
+                            const updatedSections = micrositeSections.map((s: any) => 
+                              s.sectionId === section.sectionId 
+                                ? { ...s, values: { ...s.values, [field.key]: value } }
                                 : s
                             ) || []
-                            onUpdate({ sections: updatedSections })
+                            onUpdate({ sections: updatedSections } as any)
                           }}
                         />
                       </div>
@@ -443,15 +450,13 @@ function FieldInput({
 
 function DesignTab({ 
   site, 
-  template,
   onUpdate
 }: { 
-  site: Site
-  template?: Template
-  onUpdate: (data: Partial<Site>) => void
+  site: MicrositeWithDetails
+  onUpdate: (data: Partial<MicrositeWithDetails>) => void
 }) {
-  const colorSchemes = template?.colorSchemes || []
-  const fontPairs = template?.fontPairs || []
+  const colorSchemes = site.version?.colorSchemes || []
+  const fontPairs = site.version?.fontPairs || []
 
   return (
     <div className="space-y-6">
@@ -461,12 +466,12 @@ function DesignTab({
           <p className="text-gray-500">No color schemes available</p>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {colorSchemes.map((scheme) => (
+            {colorSchemes.map((scheme: any) => (
               <button
                 key={scheme.id}
-                onClick={() => onUpdate({ selectedColorScheme: scheme.id })}
+                onClick={() => onUpdate({ colorScheme: scheme.id } as any)}
                 className={`p-4 rounded-xl border-2 transition-all ${
-                  site.selectedColorScheme === scheme.id
+                  site.colorScheme === scheme.id
                     ? 'border-purple-600 bg-purple-50'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
@@ -486,7 +491,7 @@ function DesignTab({
                   />
                 </div>
                 <p className="text-sm font-medium text-gray-900">{scheme.name}</p>
-                {site.selectedColorScheme === scheme.id && (
+                {site.colorScheme === scheme.id && (
                   <Check className="w-4 h-4 text-purple-600 mt-1" />
                 )}
               </button>
@@ -501,12 +506,12 @@ function DesignTab({
           <p className="text-gray-500">No font styles available</p>
         ) : (
           <div className="space-y-3">
-            {fontPairs.map((pair) => (
+            {fontPairs.map((pair: any) => (
               <button
                 key={pair.id}
-                onClick={() => onUpdate({ selectedFontPair: pair.id })}
+                onClick={() => onUpdate({ fontPair: pair.id } as any)}
                 className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
-                  site.selectedFontPair === pair.id
+                  site.fontPair === pair.id
                     ? 'border-purple-600 bg-purple-50'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
@@ -520,7 +525,7 @@ function DesignTab({
                       {pair.heading} + {pair.body}
                     </p>
                   </div>
-                  {site.selectedFontPair === pair.id && (
+                  {site.fontPair === pair.id && (
                     <Check className="w-5 h-5 text-purple-600" />
                   )}
                 </div>
@@ -537,8 +542,8 @@ function SettingsTab({
   site,
   onUpdate
 }: { 
-  site: Site
-  onUpdate: (data: Partial<Site>) => void
+  site: MicrositeWithDetails
+  onUpdate: (data: Partial<MicrositeWithDetails>) => void
 }) {
   return (
     <div className="space-y-6">

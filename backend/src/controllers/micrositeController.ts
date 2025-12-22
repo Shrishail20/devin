@@ -23,11 +23,16 @@ export const createMicrosite = async (req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    // Get current version
-    const version = await TemplateVersion.findOne({
+    // Get current version (try by version number first, then fallback to latest)
+    let version = await TemplateVersion.findOne({
       templateId: template._id,
       version: template.currentVersion
     });
+
+    // Fallback: get the latest version if specific version not found
+    if (!version) {
+      version = await TemplateVersion.findOne({ templateId: template._id }).sort({ version: -1 });
+    }
 
     if (!version) {
       res.status(404).json({ error: 'Template version not found' });

@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { Site, Template, Guest, Wish } from '../models';
+import { Site, Template, Guest, Wish, TemplateVersion, TemplateSection } from '../models';
 import { AuthRequest } from '../middleware';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -28,13 +28,39 @@ export const createSite = async (req: AuthRequest, res: Response): Promise<void>
 
     const slug = generateSlug(title);
 
-    // Initialize sections from template (legacy - sections are now in separate collection)
-    const sections = (template.sections || []).map((section: any, index: number) => ({
-      sectionId: section.id,
-      visible: section.defaultVisible !== false,
-      order: index,
-      content: {}
-    }));
+    // Try to get sections from the new schema (TemplateSection collection)
+    let sections: any[] = [];
+    
+    // First, try to get sections from TemplateVersion -> TemplateSection
+    const templateVersion = await TemplateVersion.findOne({ templateId: template._id }).sort({ version: -1 });
+    if (templateVersion) {
+      const templateSections = await TemplateSection.find({ versionId: templateVersion._id }).sort({ order: 1 });
+      sections = templateSections.map((section: any) => ({
+        sectionId: section.sectionId || section._id.toString(),
+        visible: section.canDisable !== false,
+        order: section.order,
+        content: section.sampleValues || {}
+      }));
+    }
+    
+    // Fallback to legacy embedded sections if no sections found in new schema
+    if (sections.length === 0 && template.sections && template.sections.length > 0) {
+      sections = template.sections.map((section: any, index: number) => ({
+        sectionId: section.id,
+        visible: section.defaultVisible !== false,
+        order: index,
+        content: {}
+      }));
+    }
+
+    // Get color schemes and font pairs from template version or template
+    let colorSchemes = template.colorSchemes || [];
+    let fontPairs = template.fontPairs || [];
+    
+    if (templateVersion) {
+      colorSchemes = templateVersion.colorSchemes || colorSchemes;
+      fontPairs = templateVersion.fontPairs || fontPairs;
+    }
 
     const site = new Site({
       userId: req.user?.id,
@@ -43,14 +69,14 @@ export const createSite = async (req: AuthRequest, res: Response): Promise<void>
       title,
       slug,
       sections,
-      selectedColorScheme: (template.colorSchemes || [])[0]?.id || '',
-      selectedFontPair: (template.fontPairs || [])[0]?.id || ''
+      selectedColorScheme: colorSchemes[0]?.id || '',
+      selectedFontPair: fontPairs[0]?.id || ''
     });
 
     await site.save();
 
     // Increment template usage count
-    template.usageCount += 1;
+    template.usageCount = (template.usageCount || 0) + 1;
     await template.save();
 
     res.status(201).json(site);
