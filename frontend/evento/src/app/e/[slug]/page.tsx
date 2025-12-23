@@ -1,23 +1,29 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import Swal from 'sweetalert2'
 import { 
-  Calendar, 
-  MapPin, 
-  Clock, 
   Heart, 
   Users,
   Send,
   Check,
   X,
-  HelpCircle,
-  Sparkles
+  HelpCircle
 } from 'lucide-react'
-import { micrositeApi, wishApi } from '@/lib/api'
+import { micrositeApi } from '@/lib/api'
 import { MicrositeWithDetails } from '@/types'
+import EventSectionRenderer, { ColorScheme, EventSection } from '@/components/EventSectionRenderer'
+
+// Default color scheme if none is provided
+const defaultColorScheme: ColorScheme = {
+  primary: '#9333ea',
+  secondary: '#c084fc',
+  accent: '#f0abfc',
+  background: '#faf5ff',
+  text: '#1f2937'
+}
 
 export default function PublicEventPage() {
   const params = useParams()
@@ -27,7 +33,15 @@ export default function PublicEventPage() {
     queryKey: ['public-microsite', slug],
     queryFn: async () => {
       const response = await micrositeApi.getPublic(slug)
-      return response.data as MicrositeWithDetails
+      // API returns { microsite, version, templateSections, sections, wishes }
+      const data = response.data
+      return {
+        ...data.microsite,
+        version: data.version,
+        templateSections: data.templateSections,
+        sections: data.sections,
+        wishes: data.wishes,
+      } as MicrositeWithDetails
     },
   })
 
@@ -56,76 +70,96 @@ export default function PublicEventPage() {
     )
   }
 
+  // Get color scheme from microsite or version, or use default
+  const colorSchemes = site.version?.colorSchemes || []
+  const selectedSchemeIndex = typeof site.colorScheme === 'number' ? site.colorScheme : 0
+  const colorScheme: ColorScheme = (colorSchemes.length > selectedSchemeIndex ? colorSchemes[selectedSchemeIndex] : null) || defaultColorScheme
+
+  // Get sections to render - merge templateSections with microsite sections
+  // templateSections have the type/order, sections have the user's values
+  const templateSections = site.templateSections || []
+  const micrositeSections = site.sections || []
+
+  // Create a map of microsite sections by sectionId for quick lookup
+  const sectionValuesMap = new Map<string, Record<string, unknown>>()
+  micrositeSections.forEach((section: any) => {
+    sectionValuesMap.set(section.sectionId, section.values || {})
+  })
+
+  // Merge template sections with microsite values
+  const sectionsToRender: Array<EventSection & { values: Record<string, unknown> }> = templateSections
+    .filter((ts: any) => {
+      // Check if this section is enabled in the microsite
+      const micrositeSection = micrositeSections.find((ms: any) => ms.sectionId === ts.sectionId)
+      return micrositeSection ? micrositeSection.enabled !== false : true
+    })
+    .sort((a: any, b: any) => a.order - b.order)
+    .map((ts: any) => ({
+      ...ts,
+      values: sectionValuesMap.get(ts.sectionId) || ts.sampleValues || {}
+    }))
+
+  // Check if we have any sections to render
+  const hasSections = sectionsToRender.length > 0
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50">
-      <HeroSection site={site} />
+    <div className="min-h-screen" style={{ backgroundColor: colorScheme.background }}>
+      {hasSections ? (
+        // Render template sections using the shared renderer
+        sectionsToRender.map((section) => (
+          <EventSectionRenderer
+            key={section._id || section.sectionId}
+            section={section}
+            values={section.values}
+            colorScheme={colorScheme}
+            deviceMode="desktop"
+            isPreview={false}
+          />
+        ))
+      ) : (
+        // Fallback to simple title display if no sections
+        <FallbackHeroSection site={site} colorScheme={colorScheme} />
+      )}
       
+      {/* Always show RSVP if enabled (functional form) */}
       {site.settings?.enableRsvp && (
-        <RsvpSection site={site} />
+        <RsvpSection site={site} colorScheme={colorScheme} />
       )}
       
+      {/* Always show Wishes if enabled (functional form) */}
       {site.settings?.enableWishes && (
-        <WishesSection site={site} />
+        <WishesSection site={site} colorScheme={colorScheme} />
       )}
       
-      <footer className="py-8 text-center text-gray-500 text-sm">
+      <footer 
+        className="py-8 text-center text-sm"
+        style={{ color: colorScheme.text }}
+      >
         <p>Created with <Heart className="w-4 h-4 inline text-pink-500" /> using Evento</p>
       </footer>
     </div>
   )
 }
 
-function HeroSection({ site }: { site: MicrositeWithDetails }) {
-  const eventDate = site.settings?.eventDate ? new Date(site.settings.eventDate) : null
-  
+// Fallback hero section when no template sections are available
+function FallbackHeroSection({ site, colorScheme }: { site: MicrositeWithDetails; colorScheme: ColorScheme }) {
   return (
-    <section className="relative min-h-[80vh] flex items-center justify-center px-4 py-20">
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float" />
-        <div className="absolute bottom-20 right-10 w-72 h-72 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float" style={{ animationDelay: '2s' }} />
-      </div>
-      
+    <section 
+      className="relative min-h-[60vh] flex items-center justify-center px-4 py-20"
+      style={{ 
+        background: `linear-gradient(135deg, ${colorScheme.primary}, ${colorScheme.secondary})`
+      }}
+    >
       <div className="relative text-center max-w-2xl mx-auto">
-        <div className="mb-6">
-          <Sparkles className="w-12 h-12 text-purple-500 mx-auto mb-4" />
-        </div>
-        
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6 font-display">
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 font-display">
           {site.title}
         </h1>
-        
-        {/* Description can be added from section values */}
-        
-        {eventDate && (
-          <div className="inline-flex flex-col sm:flex-row items-center gap-4 sm:gap-8 bg-white/80 backdrop-blur-lg rounded-2xl px-6 py-4 shadow-lg">
-            <div className="flex items-center gap-2 text-gray-700">
-              <Calendar className="w-5 h-5 text-purple-600" />
-              <span className="font-medium">
-                {eventDate.toLocaleDateString('en-US', { 
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-gray-700">
-              <Clock className="w-5 h-5 text-purple-600" />
-              <span className="font-medium">
-                {eventDate.toLocaleTimeString('en-US', { 
-                  hour: 'numeric',
-                  minute: '2-digit'
-                })}
-              </span>
-            </div>
-          </div>
-        )}
       </div>
     </section>
   )
 }
 
-function RsvpSection({ site }: { site: MicrositeWithDetails }) {
+function RsvpSection({ site, colorScheme }: { site: MicrositeWithDetails; colorScheme: ColorScheme }) {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -181,7 +215,7 @@ function RsvpSection({ site }: { site: MicrositeWithDetails }) {
     <section className="py-16 px-4 bg-white">
       <div className="max-w-md mx-auto">
         <div className="text-center mb-8">
-          <Users className="w-10 h-10 text-purple-600 mx-auto mb-4" />
+          <Users className="w-10 h-10 mx-auto mb-4" style={{ color: colorScheme.primary }} />
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">RSVP</h2>
           <p className="text-gray-600">Let us know if you can make it!</p>
         </div>
@@ -295,6 +329,7 @@ function RsvpSection({ site }: { site: MicrositeWithDetails }) {
             type="submit"
             disabled={submitMutation.isPending}
             className="w-full btn-primary disabled:opacity-50"
+            style={{ backgroundColor: colorScheme.primary }}
           >
             {submitMutation.isPending ? 'Submitting...' : 'Submit RSVP'}
           </button>
@@ -304,7 +339,7 @@ function RsvpSection({ site }: { site: MicrositeWithDetails }) {
   )
 }
 
-function WishesSection({ site }: { site: MicrositeWithDetails }) {
+function WishesSection({ site, colorScheme }: { site: MicrositeWithDetails; colorScheme: ColorScheme }) {
   const [newWish, setNewWish] = useState({ name: '', message: '' })
 
   const { data: wishes, refetch } = useQuery({
@@ -349,9 +384,9 @@ function WishesSection({ site }: { site: MicrositeWithDetails }) {
     <section className="py-16 px-4">
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-8">
-          <Heart className="w-10 h-10 text-pink-500 mx-auto mb-4" />
+          <Heart className="w-10 h-10 mx-auto mb-4" style={{ color: colorScheme.accent }} />
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Wishes & Messages</h2>
-          <p className="text-gray-600">Leave your heartfelt wishes for the couple</p>
+          <p className="text-gray-600">Leave your heartfelt wishes</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card mb-8">
@@ -385,6 +420,7 @@ function WishesSection({ site }: { site: MicrositeWithDetails }) {
               type="submit"
               disabled={submitMutation.isPending}
               className="btn-primary flex items-center justify-center gap-2 disabled:opacity-50"
+              style={{ backgroundColor: colorScheme.secondary }}
             >
               <Send className="w-4 h-4" />
               {submitMutation.isPending ? 'Sending...' : 'Send Wish'}
