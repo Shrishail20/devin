@@ -81,14 +81,14 @@ export default function EventSectionRenderer({
 
   switch (section.type) {
     case 'hero':
-      const celebrantName = getValue('celebrantName', '')
-      const age = getValue('age', '')
+      const celebrantName = getValue('celebrantName', '') || getValue('name', '') || getValue('birthdayPersonName', '')
+      const age = getValue('age', '') || getValue('turningAge', '')
       const groomName = getValue('groomName', '')
       const brideName = getValue('brideName', '')
       const tagline = getValue('tagline', 'Together Forever')
-      const backgroundImage = getValue('backgroundImage', '')
+      const backgroundImage = getValue('backgroundImage', '') || getValue('heroImage', '')
       const weddingDate = getValue('weddingDate', '')
-      const birthdayDate = getValue('birthdayDate', '')
+      const birthdayDate = getValue('birthdayDate', '') || getValue('partyDate', '')
       
       const isBirthday = celebrantName || age
       const eventDate = birthdayDate || weddingDate

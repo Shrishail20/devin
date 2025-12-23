@@ -12,18 +12,38 @@ import {
   Globe,
   Calendar,
   Heart,
-  Sparkles
+  Sparkles,
+  X,
+  Check
 } from 'lucide-react'
 import { templateApi, micrositeApi } from '@/lib/api'
 import { Template } from '@/types'
 
 const categories = ['All', 'Wedding', 'Birthday', 'Corporate', 'Party', 'Other']
 
+// Interface for sample profile
+interface SampleProfile {
+  id: string
+  name: string
+  description?: string
+}
+
+// Interface for template version with profiles
+interface TemplateVersion {
+  sampleProfiles?: SampleProfile[]
+  colorSchemes?: Array<{ id: string; name: string }>
+}
+
 export default function TemplatesPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('All')
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
+  const [selectedProfile, setSelectedProfile] = useState<string>('')
+  const [siteTitle, setSiteTitle] = useState('')
+  const [templateVersion, setTemplateVersion] = useState<TemplateVersion | null>(null)
 
   const { data: templates, isLoading } = useQuery({
     queryKey: ['templates', 'published'],
@@ -34,13 +54,13 @@ export default function TemplatesPage() {
   })
 
   const createSiteMutation = useMutation({
-    mutationFn: async ({ templateId, title }: { templateId: string; title: string }) => {
-      const response = await micrositeApi.create(templateId, title)
-      // Response is { microsite: {...}, sections: [...] }
+    mutationFn: async ({ templateId, title, profileId }: { templateId: string; title: string; profileId?: string }) => {
+      const response = await micrositeApi.create(templateId, title, profileId)
       return response.data.microsite || response.data
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['microsites'] })
+      setShowCreateModal(false)
       router.push(`/dashboard/sites/${data._id}/edit`)
     },
     onError: (error: any) => {
@@ -53,27 +73,36 @@ export default function TemplatesPage() {
   })
 
   const handleUseTemplate = async (template: Template) => {
-    const { value: title } = await Swal.fire({
-      title: 'Create Your Site',
-      input: 'text',
-      inputLabel: 'Site Title',
-      inputPlaceholder: 'e.g., John & Jane Wedding',
-      inputValue: `My ${template.name}`,
-      showCancelButton: true,
-      confirmButtonText: 'Create',
-      confirmButtonColor: '#9333ea',
-      inputValidator: (value) => {
-        if (!value) {
-          return 'Please enter a title'
-        }
-        return null
-      },
-    })
-
-      if (title) {
-        createSiteMutation.mutate({ templateId: template._id, title })
+    setSelectedTemplate(template)
+    setSiteTitle(`My ${template.name}`)
+    setSelectedProfile('')
+    
+    // Fetch template details to get sample profiles
+    try {
+      const response = await templateApi.getOne(template._id)
+      const data = response.data
+      setTemplateVersion(data.version || null)
+      
+      // Set default profile if available
+      if (data.version?.sampleProfiles?.length > 0) {
+        setSelectedProfile(data.version.sampleProfiles[0].id)
       }
+    } catch (error) {
+      console.error('Failed to fetch template details:', error)
+      setTemplateVersion(null)
     }
+    
+    setShowCreateModal(true)
+  }
+
+  const handleCreateSite = () => {
+    if (!selectedTemplate || !siteTitle.trim()) return
+    createSiteMutation.mutate({
+      templateId: selectedTemplate._id,
+      title: siteTitle.trim(),
+      profileId: selectedProfile || undefined
+    })
+  }
 
     const handlePreview = (template: Template) => {
       router.push(`/dashboard/templates/${template._id}/preview`)
@@ -162,6 +191,105 @@ export default function TemplatesPage() {
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">No templates found</h3>
           <p className="text-gray-600">Try adjusting your search or filter</p>
+        </div>
+      )}
+
+      {/* Create Site Modal with Profile Selection */}
+      {showCreateModal && selectedTemplate && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">Create Your Site</h2>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              {/* Site Title */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Site Title
+                </label>
+                <input
+                  type="text"
+                  value={siteTitle}
+                  onChange={(e) => setSiteTitle(e.target.value)}
+                  placeholder="e.g., John & Jane Wedding"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Profile Selection */}
+              {templateVersion?.sampleProfiles && templateVersion.sampleProfiles.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Choose a Style
+                  </label>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Select a pre-filled style to start with. You can customize everything later.
+                  </p>
+                  <div className="space-y-2">
+                    {templateVersion.sampleProfiles.map((profile) => (
+                      <button
+                        key={profile.id}
+                        onClick={() => setSelectedProfile(profile.id)}
+                        className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
+                          selectedProfile === profile.id
+                            ? 'border-purple-500 bg-purple-50'
+                            : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-medium text-gray-900">{profile.name}</h4>
+                            {profile.description && (
+                              <p className="text-sm text-gray-500 mt-1">{profile.description}</p>
+                            )}
+                          </div>
+                          {selectedProfile === profile.id && (
+                            <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
+                              <Check className="w-4 h-4 text-white" />
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateSite}
+                  disabled={!siteTitle.trim() || createSiteMutation.isPending}
+                  className="flex-1 px-4 py-3 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {createSiteMutation.isPending ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      Create Site
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

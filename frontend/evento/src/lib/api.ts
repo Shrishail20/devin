@@ -68,8 +68,8 @@ export const micrositeApi = {
   getAll: () => api.get('/microsites'),
   getOne: (id: string) => api.get(`/microsites/${id}`),
   getPublic: (slug: string) => api.get(`/microsites/public/${slug}`),
-  create: (templateId: string, title: string) =>
-    api.post('/microsites', { templateId, title }),
+  create: (templateId: string, title: string, profileId?: string) =>
+    api.post('/microsites', { templateId, title, profileId }),
   update: (id: string, data: any) => api.put(`/microsites/${id}`, data),
   updateSection: (id: string, sectionId: string, data: any) =>
     api.put(`/microsites/${id}/sections/${sectionId}`, data),

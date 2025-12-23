@@ -14,7 +14,7 @@ const generateSlug = (title: string): string => {
 // Create a new microsite from template
 export const createMicrosite = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { templateId, title } = req.body;
+    const { templateId, title, profileId } = req.body;
 
     // Get template
     const template = await Template.findById(templateId);
@@ -65,14 +65,28 @@ export const createMicrosite = async (req: AuthRequest, res: Response): Promise<
     await microsite.save();
 
     // Create microsite sections with sample values as initial content
+    // If profileId is provided, use the matching sampleDataSet values
     for (const templateSection of templateSections) {
+      // Determine which values to use
+      let sectionValues = templateSection.sampleValues || {};
+      
+      // If profileId is provided, look for matching sampleDataSet
+      if (profileId && templateSection.sampleDataSets && templateSection.sampleDataSets.length > 0) {
+        const matchingDataSet = templateSection.sampleDataSets.find(
+          (ds: { profileId: string; values: Record<string, unknown> }) => ds.profileId === profileId
+        );
+        if (matchingDataSet) {
+          sectionValues = matchingDataSet.values || sectionValues;
+        }
+      }
+      
       const micrositeSection = new MicrositeSection({
         micrositeId: microsite._id,
         sectionId: templateSection.sectionId,
         type: templateSection.type,
         order: templateSection.order,
         enabled: true,
-        values: templateSection.sampleValues || {}
+        values: sectionValues
       });
 
       await micrositeSection.save();
